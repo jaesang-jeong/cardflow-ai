@@ -87,6 +87,22 @@ const NOISE_SELECTORS = [
   '[class*="subscribe"]', '[class*="channel"]'
 ];
 
+const BODY_SELECTORS = [
+  '#dic_area', // Naver News
+  '#articeBody', // Daum News
+  '#article_body',
+  '.article_body',
+  '#article-view-content-div',
+  '.news_cnt',
+  '#news_body_area',
+  'article',
+  '.article-content',
+  '.story-news',
+  '.view_con',
+  '.post-content',
+  'main'
+];
+
 function isNoiseSentence(text) {
   if (!text || typeof text !== 'string') return true;
   const trimmed = text.trim();
@@ -124,6 +140,49 @@ function isNoiseSentence(text) {
   return false;
 }
 
+// Sample / Demo fallback dataset for sample buttons
+const SAMPLE_ARTICLES = {
+  '0014900000': {
+    title: '글로벌 빅테크, 차세대 지능형 자율 AI 에이전트 동시 공개... "업무 스스로 완결"',
+    press: '연합뉴스',
+    description: '글로벌 인공지능 연구팀들이 컴퓨터와 브라우저 환경을 제어하며 복잡한 업무를 스스로 완결하는 차세대 AI 에이전트 기술을 공개했습니다.',
+    content: '글로벌 주요 테크 기업들이 단순 대화형 챗봇을 넘어 사용자의 컴퓨터 환경을 직접 제어하며 복잡한 다단계 업무를 스스로 완결하는 차세대 지능형 자율 AI 에이전트를 동시 공개했다.\n\n이번에 공개된 AI 에이전트는 사용자가 내린 자연어 지시를 바탕으로 필요한 프로그램을 실행하고 웹 브라우징과 데이터 분석, 보고서 작성까지 전 과정을 자율적으로 수행한다.\n\n업계 전문가들은 이번 기술 혁신이 사무직 노동 생산성을 획기적으로 개선하고 엔터프라이즈 업무 자동화의 새로운 전기를 마련할 것으로 전망했다.\n\n글로벌 소프트웨어 기업들은 자사 플랫폼에 해당 에이전트 기능을 전면 도입하여 하반기부터 기업 고객을 대상으로 서비스 확장에 나설 방침이다.',
+    ogImage: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=1200&auto=format&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200&auto=format&fit=crop'
+    ],
+    domain: 'naver.com'
+  },
+  '20261030090000123': {
+    title: '한국은행 기준금리 0.25%p 인하 단행... "경기 회복과 물가 안정 종합 고려"',
+    press: '다음 뉴스',
+    description: '한국은행 금융통화위원회가 통화정책방향 회의를 열고 기준금리를 연 3.25%로 0.25%포인트 인하했습니다.',
+    content: '한국은행 금융통화위원회가 통화정책방향 회의를 열고 기준금리를 기존 연 3.50%에서 연 3.25%로 0.25%포인트 전격 인하했다.\n\n이번 기준금리 인하는 최근 둔화세를 보이고 있는 내수 경기 회복을 뒷받침하는 동시에 안정세를 찾은 소비자물가 흐름을 종합적으로 고려한 결정이다.\n\n시중은행의 주택담보대출 및 신용대출 금리도 연쇄적으로 하향 조정될 것으로 보이며 금융 시장의 유동성 완화 효과가 기대된다.\n\n금융당국은 금리 인하에 따른 가계부채 증가세를 면밀히 모니터링하며 부동산 시장 과열 방지를 위한 거시건전성 관리를 지속할 방침이라고 밝혔다.',
+    ogImage: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?q=80&w=1200&auto=format&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1200&auto=format&fit=crop'
+    ],
+    domain: 'daum.net'
+  },
+  'AKR20261030000000001': {
+    title: '국내 연구진, 화재 위험 없는 차세대 전고체 배터리 핵심 전해질 개발 성공',
+    press: '연합뉴스',
+    description: '화재 위험이 없고 주행거리를 대폭 늘릴 수 있는 전고체 배터리용 황화물계 고체 전해질이 개발되었습니다.',
+    content: '국내 연구진이 기존 리튬이온 배터리의 고질적인 화재 위험을 없애고 에너지 밀도를 2배 이상 높일 수 있는 차세대 전고체 배터리 핵심 전해질 개발에 성공했다.\n\n연구팀이 개발한 황화물계 고체 전해질은 기존 액체 전해질 수준의 높은 이온 전도도를 구현하면서도 저온 환경에서의 출력 저하 문제를 극복했다.\n\n전기차 업계는 이번 신소재가 상용화되면 1회 충전 시 800km 이상 주행이 가능한 안전한 전기차 배터리 양산이 앞당겨질 것으로 기대하고 있다.\n\n연구진은 국내 주요 배터리 제조사들과 함께 파일럿 검증을 거쳐 향후 3년 내 대량 양산 기술을 확보할 계획이라고 설명했다.',
+    ogImage: 'https://images.unsplash.com/photo-1558441719-8b489c63f7d1?q=80&w=1200&auto=format&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1558441719-8b489c63f7d1?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=1200&auto=format&fit=crop'
+    ],
+    domain: 'yna.co.kr'
+  }
+};
+
 // 1. Article Extractor API
 app.post('/api/extract', async (req, res) => {
   const { url } = req.body;
@@ -131,8 +190,26 @@ app.post('/api/extract', async (req, res) => {
     return res.status(400).json({ error: '유효한 기사 URL을 입력해주세요.' });
   }
 
+  const targetUrl = url.trim();
+
+  // Instant response for demo / sample URLs
+  for (const [key, sample] of Object.entries(SAMPLE_ARTICLES)) {
+    if (targetUrl.includes(key)) {
+      return res.json({
+        url: targetUrl,
+        title: sample.title,
+        press: sample.press,
+        publishDate: new Date().toISOString().split('T')[0],
+        description: sample.description,
+        content: sample.content,
+        ogImage: sample.ogImage,
+        images: sample.images,
+        domain: sample.domain
+      });
+    }
+  }
+
   try {
-    const targetUrl = url.trim();
     const response = await axios.get(targetUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -185,7 +262,7 @@ app.post('/api/extract', async (req, res) => {
       articleImages.push(ogImage);
     }
 
-    for (const selector of bodySelectors) {
+    for (const selector of BODY_SELECTORS) {
       const el = $(selector);
       if (el.length > 0) {
         el.find('img').each((_, imgEl) => {
@@ -213,20 +290,8 @@ app.post('/api/extract', async (req, res) => {
 
     // Collect article text from primary news selectors
     let articleText = '';
-    const bodySelectors = [
-      '#dic_area', // Naver News
-      '#articeBody', // Daum News
-      '#article-view-content-div',
-      '.article_body',
-      '.news_cnt',
-      'article',
-      '.article-content',
-      '.story-news',
-      '.post-content',
-      'main'
-    ];
 
-    for (const selector of bodySelectors) {
+    for (const selector of BODY_SELECTORS) {
       const el = $(selector);
       if (el.length > 0) {
         const clone = el.clone();
