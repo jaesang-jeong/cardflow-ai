@@ -193,53 +193,120 @@ function splitSentences(text) {
 }
 
 function generateOneLineSummary(article, sentences) {
-  const { title = '', description = '' } = article;
-  if (description) {
-    const cleanDesc = description
+  const { title = '', content = '' } = article;
+  const cleanTitle = title
+    .replace(/^\[.*?\]\s*/, '')
+    .replace(/\s*-\s*[가-힣A-Za-z0-9\s]+뉴스.*$/, '')
+    .trim();
+
+  if (!content || sentences.length === 0) {
+    return `${cleanTitle}에 대한 핵심 요약 브리핑입니다.`;
+  }
+
+  const words = content.match(/[가-힣a-zA-Z0-9]{2,12}/g) || [];
+  const stopWords = new Set([
+    '기자', '뉴스', '보도', '통해', '이번', '지난', '관련', '대한', '있는', '것으로', '따르면', 
+    '위해', '하는', '에서', '으로', '부터', '또한', '하지만', '그리고', '이날', '오전', '오후', 
+    '현재', '경우', '있다', '했다', '된다', '됐다', '무단', '전재', '재배포', '금지', '사진',
+    '밝혔다', '설명했다', '말했다', '전했다', '강조했다'
+  ]);
+
+  const freq = {};
+  for (const w of words) {
+    if (!stopWords.has(w) && w.length >= 2) {
+      freq[w] = (freq[w] || 0) + 1;
+    }
+  }
+
+  const topKeywords = Object.entries(freq).sort((a,b) => b[1] - a[1]).slice(0, 10).map(([w]) => w);
+  const titleWords = cleanTitle.match(/[가-힣a-zA-Z0-9]{2,12}/g) || [];
+
+  const cleanSentences = sentences
+    .map(s => s
       .replace(/^\[.*?\]\s*/, '')
-      .replace(/\s*-\s*[가-힣A-Za-z0-9\s]+뉴스.*$/, '')
-      .replace(/[가-힣\s]+기자\s*=\s*/, '')
-      .replace(/기자입니다|기자|구독|무단\s*전재/g, '')
+      .replace(/^[가-힣\s]{2,10}\s*(기자|특파원)\s*=\s*/, '')
+      .replace(/\([가-힣\s=]+기자\)/, '')
+      .replace(/사진\s*=\s*[가-힣\s]+/, '')
+      .trim()
+    )
+    .filter(s => 
+      s.length >= 20 && 
+      s.length <= 160 &&
+      !s.includes('기자') &&
+      !s.includes('무단전재') &&
+      !s.includes('재배포') &&
+      !s.includes('구독') &&
+      !s.includes('이메일')
+    );
+
+  if (cleanSentences.length === 0) {
+    return `${cleanTitle}에 대한 핵심 뉴스 요약입니다.`;
+  }
+
+  const scored = cleanSentences.map((sent, idx) => {
+    let score = 0;
+    for (const tw of titleWords) {
+      if (sent.includes(tw)) score += 3;
+    }
+    for (const kw of topKeywords) {
+      if (sent.includes(kw)) score += 2;
+    }
+    if (/발표|공개|착수|돌파|도입|확정|합의|출시|성공|전망|결정|본격화|개선|증가|확대|기록/i.test(sent)) {
+      score += 4;
+    }
+    if (/[0-9]+(\.[0-9]+)?(%|원|억|조|km|만|배)/i.test(sent)) {
+      score += 3;
+    }
+
+    const total = cleanSentences.length;
+    let position = 'body';
+    if (idx < Math.ceil(total * 0.35)) {
+      position = 'intro';
+      score += 2;
+    } else if (idx >= Math.floor(total * 0.65)) {
+      position = 'conclusion';
+      score += 2;
+    }
+    return { sentence: sent, score, position, index: idx };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  const best = scored[0];
+
+  if (best && best.sentence.length >= 40 && best.sentence.length <= 130 && best.score >= 12) {
+    let clean = best.sentence;
+    clean = clean.replace(/했다\.$/, '했습니다.').replace(/됐다\.$/, '됐습니다.').replace(/밝혔다\.$/, '밝혔습니다.');
+    if (!clean.endsWith('.')) clean += '.';
+    return clean;
+  }
+
+  const bestIntro = scored.find(s => s.position === 'intro') || scored[0];
+  const bestConclusion = scored.find(s => (s.position === 'conclusion' || s.position === 'body') && s.index !== bestIntro.index);
+
+  if (bestIntro && bestConclusion) {
+    let part1 = bestIntro.sentence
+      .replace(/\s*(밝혔다|전했다|말했다|설명했다|발표했다)\.$/, '')
+      .replace(/했다\.$/, '하며')
+      .replace(/다\.$/, '며')
       .trim();
-    if (cleanDesc.length >= 30 && cleanDesc.length <= 160 && cleanDesc !== title) {
-      return cleanDesc.endsWith('.') ? cleanDesc : `${cleanDesc}.`;
+    if (!part1.endsWith('며') && !part1.endsWith('고')) {
+      part1 += '며,';
+    }
+    let part2 = bestConclusion.sentence
+      .replace(/^[가-힣\s]+는\s*/, '')
+      .replace(/했다\.$/, '했습니다.')
+      .replace(/됐다\.$/, '됐습니다.');
+    if (!part2.endsWith('.')) part2 += '.';
+    const synthesized = `${part1} ${part2}`;
+    if (synthesized.length <= 150) {
+      return synthesized;
     }
   }
 
-  if (sentences.length > 0) {
-    const candidates = sentences.slice(0, 4);
-    let bestSentence = candidates[0];
-    let bestScore = -1;
-    const titleWords = title.match(/[가-힣a-zA-Z0-9]{2,}/g) || [];
-
-    for (const sent of candidates) {
-      if (sent.length < 25 || sent.length > 160) continue;
-      if (sent.includes('기자') || sent.includes('무단전재') || sent.includes('구독')) continue;
-
-      let score = 0;
-      for (const tw of titleWords) {
-        if (sent.includes(tw)) score += 3;
-      }
-      if (/발표|공개|착수|돌파|도입|확정|합의|출시|성공|전망|결정|강조|밝혔다|나타났다/i.test(sent)) {
-        score += 4;
-      }
-      if (score > bestScore) {
-        bestScore = score;
-        bestSentence = sent;
-      }
-    }
-
-    if (bestSentence) {
-      let clean = bestSentence
-        .replace(/^\[.*?\]\s*/, '')
-        .replace(/^[가-힣\s]+기자\s*=\s*/, '')
-        .replace(/^[가-힣\s]+특파원\s*=\s*/, '')
-        .trim();
-      return clean.endsWith('.') ? clean : `${clean}.`;
-    }
-  }
-
-  return `${title}에 대한 핵심 요약 및 주요 변화 포인트 브리핑입니다.`;
+  let fallback = best ? best.sentence : cleanSentences[0];
+  fallback = fallback.replace(/했다\.$/, '했습니다.').replace(/됐다\.$/, '됐습니다.');
+  if (!fallback.endsWith('.')) fallback += '.';
+  return fallback;
 }
 
 function generateDeckFromArticle(article, options = {}) {

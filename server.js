@@ -247,6 +247,49 @@ app.get('/api/search-images', async (req, res) => {
   }
 });
 
+// 4. Gemini AI Whole-Article One-Line Summarizer
+app.post('/api/summarize-ai', async (req, res) => {
+  const { title, content, apiKey } = req.body;
+  const key = apiKey || process.env.GEMINI_API_KEY;
+
+  if (!key) {
+    return res.status(400).json({ error: 'Gemini API Key is required' });
+  }
+
+  try {
+    const prompt = `당신은 소셜 미디어 카드뉴스 전문 수석 에디터입니다.
+아래 뉴스 기사의 전체 내용을 꼼꼼히 파악한 뒤, 기사 전체의 [핵심 주체 + 핵심 사건 + 주요 결과/전망]을 관통하는 완벽한 1문장 핵심 요약(60~90자 내외)을 작성해 주세요.
+독자가 첫 표지만 보고도 전체 내용을 한눈에 이해할 수 있어야 합니다.
+존댓말(~했습니다, ~전망입니다)로 작성하고, 다른 부연 설명이나 따옴표 없이 오직 완성된 요약문 한 문장만 출력하세요.
+
+기사 제목: ${title}
+기사 본문:
+${(content || title).substring(0, 3000)}`;
+
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+    const apiRes = await axios.post(
+      geminiUrl,
+      {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 120,
+        },
+      },
+      { timeout: 10000 }
+    );
+
+    const summaryText = apiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (summaryText) {
+      return res.json({ oneLineSummary: summaryText.replace(/^["']|["']$/g, '').trim() });
+    }
+    return res.status(500).json({ error: 'Failed to generate AI summary' });
+  } catch (err) {
+    console.error('Gemini API error:', err.response?.data || err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // Setup Vite Dev Middleware in Development
 async function startServer() {
   const isDev = process.env.NODE_ENV !== 'production';

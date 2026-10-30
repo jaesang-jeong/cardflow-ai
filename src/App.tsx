@@ -117,6 +117,24 @@ export const App: React.FC = () => {
         options,
       });
 
+      // If user has Gemini API Key, enhance the 1-line summary via Gemini API
+      if (apiKey) {
+        try {
+          setLoadingStep('AI 에디터가 전체 기사 1줄 요약 정밀 생성 중...');
+          const aiRes = await axios.post('/api/summarize-ai', {
+            title: article.title,
+            content: article.content,
+            apiKey,
+          });
+          if (aiRes.data?.oneLineSummary) {
+            newDeck.slides[0].oneLineSummary = aiRes.data.oneLineSummary;
+            newDeck.slides[0].subtitle = aiRes.data.oneLineSummary;
+          }
+        } catch (e) {
+          console.warn('AI summary call fallback:', e);
+        }
+      }
+
       setDeck(newDeck);
       setActiveSlideIndex(0);
     } catch (err: any) {
@@ -131,7 +149,7 @@ export const App: React.FC = () => {
   };
 
   // Generate from Direct Text Handler
-  const handleGenerateFromText = (
+  const handleGenerateFromText = async (
     title: string,
     content: string,
     press: string,
@@ -139,9 +157,9 @@ export const App: React.FC = () => {
     options: GenerationOptions
   ) => {
     setIsLoading(true);
-    setLoadingStep('텍스트 구조 분석 및 슬라이드 생성 중...');
+    setLoadingStep('기사 전체 내용 분석 및 핵심 1줄 요약 생성 중...');
 
-    setTimeout(() => {
+    try {
       const newDeck = generateCardDeckFromText({
         title,
         content,
@@ -151,11 +169,28 @@ export const App: React.FC = () => {
         options,
       });
 
+      if (apiKey) {
+        try {
+          const aiRes = await axios.post('/api/summarize-ai', {
+            title,
+            content,
+            apiKey,
+          });
+          if (aiRes.data?.oneLineSummary) {
+            newDeck.slides[0].oneLineSummary = aiRes.data.oneLineSummary;
+            newDeck.slides[0].subtitle = aiRes.data.oneLineSummary;
+          }
+        } catch (e) {
+          console.warn('AI summary call fallback:', e);
+        }
+      }
+
       setDeck(newDeck);
       setActiveSlideIndex(0);
+    } finally {
       setIsLoading(false);
       setLoadingStep('');
-    }, 400);
+    }
   };
 
   // Sample Selector Handler
