@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>CardFlow AI - 뉴스 카드뉴스 생성기</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div class="brand">
+      <div class="logo-badge">📰</div>
+      <div>
+        <div class="brand-title">CardFlow AI</div>
+        <div style="font-size:9px; color:#94a3b8;">기사 → 카드뉴스 1초 생성</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button id="btnExtract" class="btn btn-primary" title="현재 활성 탭 기사 추출">
+        ⚡ 기사 자동 추출
+      </button>
+      <button id="btnOpenWeb" class="btn" title="전체화면 웹 스튜디오 열기">
+        🖥️ 풀화면
+      </button>
+    </div>
+  </div>
+
+  <!-- Active Article Banner -->
+  <div class="article-banner">
+    <div id="articleTitle" class="article-title">기사 제목을 불러오는 중...</div>
+    <div id="articleMeta" class="article-meta">언론사 감지 중...</div>
+  </div>
+
+  <!-- Canvas Preview -->
+  <div class="canvas-wrapper">
+    <canvas id="cardCanvas"></canvas>
+    <button id="btnPrev" class="nav-arrow left">‹</button>
+    <button id="btnNext" class="nav-arrow right">›</button>
+  </div>
+
+  <!-- Controls: Aspect Ratio & Theme -->
+  <div class="controls-bar">
+    <div class="segmented-control">
+      <button class="seg-btn" data-ratio="1:1">1:1 정방형</button>
+      <button class="seg-btn active" data-ratio="4:5">4:5 피드</button>
+      <button class="seg-btn" data-ratio="9:16">9:16 스토리</button>
+    </div>
+
+    <div class="theme-picker">
+      <div class="theme-dot active" data-theme="modern-dark" style="background:#8b5cf6;" title="모던 다크"></div>
+      <div class="theme-dot" data-theme="editorial-navy" style="background:#f59e0b;" title="에디토리얼 네이비"></div>
+      <div class="theme-dot" data-theme="clean-white" style="background:#ffffff; border:1px solid #ccc;" title="클린 화이트"></div>
+      <div class="theme-dot" data-theme="emerald-forest" style="background:#10b981;" title="에메랄드"></div>
+      <div class="theme-dot" data-theme="sunset-coral" style="background:#f43f5e;" title="선셋 코랄"></div>
+    </div>
+  </div>
+
+  <!-- Slide Thumbnails Strip -->
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+    <span style="font-size:10px; font-weight:600; color:#94a3b8;">슬라이드 목록</span>
+    <button id="btnAddSlide" style="font-size:10px; color:#8b5cf6; background:none; border:none; cursor:pointer; font-weight:600;">+ 슬라이드 추가</button>
+  </div>
+  <div id="thumbnailsStrip" class="thumbnails-strip"></div>
+
+  <!-- Slide Editor -->
+  <div class="editor-panel">
+    <div style="display:flex; gap:8px; margin-bottom:8px;">
+      <div style="flex:1;">
+        <label class="editor-label">카테고리 뱃지</label>
+        <select id="selectCategory" class="editor-input" style="cursor:pointer;">
+          <option value="auto">🎯 자동 감지 모드</option>
+          <option value="🤖 AI & 미래기술">🤖 AI & 미래기술</option>
+          <option value="💻 IT & 테크">💻 IT & 테크</option>
+          <option value="📈 경제 & 금융">📈 경제 & 금융</option>
+          <option value="🏢 기업 & 산업">🏢 기업 & 산업</option>
+          <option value="🏛️ 정치 & 정책">🏛️ 정치 & 정책</option>
+          <option value="⚖️ 사회 & 이슈">⚖️ 사회 & 이슈</option>
+          <option value="🌍 국제 & 지구촌">🌍 국제 & 지구촌</option>
+          <option value="🌱 환경 & 에너지">🌱 환경 & 에너지</option>
+          <option value="🏥 바이오 & 건강">🏥 바이오 & 건강</option>
+          <option value="🎬 문화 & 엔터">🎬 문화 & 엔터</option>
+          <option value="⚽ 스포츠 & 레저">⚽ 스포츠 & 레저</option>
+          <option value="💡 라이프 & 트렌드">💡 라이프 & 트렌드</option>
+        </select>
+      </div>
+      <div style="flex:1;">
+        <label class="editor-label">슬라이드 배지 직접수정</label>
+        <input type="text" id="editBadge" class="editor-input" placeholder="배지 문구">
+      </div>
+    </div>
+    <div class="editor-field">
+      <label class="editor-label">제목 (헤드라인)</label>
+      <input type="text" id="editTitle" class="editor-input">
+    </div>
+    <div class="editor-field">
+      <label class="editor-label">서브타이틀</label>
+      <input type="text" id="editSubtitle" class="editor-input">
+    </div>
+    <div class="editor-field">
+      <label class="editor-label">세부 요약 내용 (줄바꿈으로 구분)</label>
+      <textarea id="editBullets" class="editor-textarea"></textarea>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="font-size:10px; color:#94a3b8;">배경 어둡기:</span>
+        <input type="range" id="overlaySlider" min="0.1" max="0.9" step="0.05" style="width:70px;">
+        <span id="overlayVal" style="font-size:10px; color:#a78bfa;">65%</span>
+      </div>
+      <button id="btnAiImage" class="btn" style="font-size:10px; padding:3px 8px;">
+        ✨ AI 새 이미지
+      </button>
+    </div>
+  </div>
+
+  <!-- Actions Toolbar -->
+  <div class="export-toolbar">
+    <button id="btnCopyCaption" class="btn" title="인스타그램 캡션 및 해시태그 복사">
+      📋 캡션 복사
+    </button>
+    <button id="btnExportSingle" class="btn" title="현재 슬라이드 PNG 저장">
+      🖼️ 현재 PNG
+    </button>
+    <button id="btnExportZip" class="btn btn-primary" title="전체 슬라이드 일괄 다운로드">
+      📥 전체 ZIP 저장
+    </button>
+  </div>
+
+  <div id="toast" class="toast">알림</div>
+
+  <script src="jszip.min.js"></script>
+  <script src="themes.js"></script>
+  <script src="nlp.js"></script>
+  <script src="renderer.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

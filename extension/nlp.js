@@ -1,0 +1,361 @@
+// Client-side NLP Summarizer for Chrome Extension
+
+const CATEGORY_LIST = [
+  { key: 'ai', badge: 'AI & 미래기술', icon: '🤖', name: 'AI & 미래기술' },
+  { key: 'tech', badge: 'IT & 테크', icon: '💻', name: 'IT & 테크' },
+  { key: 'economy', badge: '경제 & 금융', icon: '📈', name: '경제 & 금융' },
+  { key: 'business', badge: '기업 & 산업', icon: '🏢', name: '기업 & 산업' },
+  { key: 'politics', badge: '정치 & 정책', icon: '🏛️', name: '정치 & 정책' },
+  { key: 'society', badge: '사회 & 이슈', icon: '⚖️', name: '사회 & 이슈' },
+  { key: 'global', badge: '국제 & 지구촌', icon: '🌍', name: '국제 & 지구촌' },
+  { key: 'climate', badge: '환경 & 에너지', icon: '🌱', name: '환경 & 에너지' },
+  { key: 'bio', badge: '바이오 & 건강', icon: '🏥', name: '바이오 & 건강' },
+  { key: 'culture', badge: '문화 & 엔터', icon: '🎬', name: '문화 & 엔터' },
+  { key: 'sports', badge: '스포츠 & 레저', icon: '⚽', name: '스포츠 & 레저' },
+  { key: 'lifestyle', badge: '라이프 & 트렌드', icon: '💡', name: '라이프 & 트렌드' },
+];
+
+const TOPIC_IMAGES = {
+  ai: [
+    'https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=1200&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=1200&auto=format&fit=crop',
+  ],
+  tech: [
+    'https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?q=80&w=1200&auto=format&fit=crop',
+  ],
+  economy: [
+    'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?q=80&w=1200&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?q=80&w=1200&auto=format&fit=crop',
+  ],
+  business: [
+    'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1200&auto=format&fit=crop',
+  ],
+  politics: [
+    'https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=80&w=1200&auto=format&fit=crop',
+  ],
+  society: [
+    'https://images.unsplash.com/photo-1577962917302-cd874c4e31d2?q=80&w=1200&auto=format&fit=crop',
+  ],
+  global: [
+    'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&auto=format&fit=crop',
+  ],
+  climate: [
+    'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=1200&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?q=80&w=1200&auto=format&fit=crop',
+  ],
+  bio: [
+    'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?q=80&w=1200&auto=format&fit=crop',
+  ],
+  culture: [
+    'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=1200&auto=format&fit=crop',
+  ],
+  sports: [
+    'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1200&auto=format&fit=crop',
+  ],
+  lifestyle: [
+    'https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=1200&auto=format&fit=crop',
+  ]
+};
+
+const CATEGORY_RULES = [
+  {
+    key: 'ai',
+    patterns: [
+      /\b(ai|llm|gpt|chatgpt|claude|gemini|deepmind|openai|sora|copilot)\b/i,
+      /인공지능|생성형\s*ai|챗봇|거대언어모델|초거대\s*ai|딥러닝|머신러닝|휴머노이드|로봇공학/i,
+    ]
+  },
+  {
+    key: 'tech',
+    patterns: [
+      /\b(it|pc|vr|ar|xr|os|app|api|cpu|gpu|chip|tech)\b/i,
+      /스마트폰|반도체|파운드리|hbm|메모리|디스플레이|소프트웨어|사이버보안|클라우드|서버|애플|아이폰|갤럭시/i,
+    ]
+  },
+  {
+    key: 'economy',
+    patterns: [
+      /\b(fed|etf|cpi|ipo)\b/i,
+      /금리|기준금리|한국은행|연준|환율|원·달러|증시|주가|코스피|코스닥|나스닥|부동산|아파트|청약|물가|인플레이션|채권|가계부채|비트코인|주식/i,
+    ]
+  },
+  {
+    key: 'business',
+    patterns: [
+      /\b(ceo|m&a)\b/i,
+      /영업이익|매출|실적|분기|흑자|적자|상장|인수합병|스타트업|대표이사|회장|구조조정|투자유치|시가총액/i,
+    ]
+  },
+  {
+    key: 'politics',
+    patterns: [
+      /국회|대통령|총리|여당|야당|국민의힘|더불어민주당|국정감사|청문회|법안|국회의원|선거|투표|장관|정부|정치/i,
+    ]
+  },
+  {
+    key: 'climate',
+    patterns: [
+      /\b(ev|esg)\b/i,
+      /기후|기후변화|온난화|탄소|탄소중립|친환경|전기차|배터리|이차전지|전고체|신재생|태양광|풍력|에너지|폭염|한파/i,
+    ]
+  },
+  {
+    key: 'bio',
+    patterns: [
+      /\b(fda)\b/i,
+      /신약|임상|제약|바이오|치료제|백신|병원|의사|간호사|질병|암|의학|식약처|헬스케어|의료대란/i,
+    ]
+  },
+  {
+    key: 'culture',
+    patterns: [
+      /\b(k-pop|kpop|ott)\b/i,
+      /영화|드라마|배우|감독|아이돌|가수|음악|앨범|빌보드|넷플릭스|콘서트|웹툰|예술|뮤지컬|연예/i,
+    ]
+  },
+  {
+    key: 'sports',
+    patterns: [
+      /\b(kbo|epl|nba|mlb)\b/i,
+      /축구|야구|골프|농구|배구|손흥민|이강인|김하성|오타니|올림픽|월드컵|프리미어리그|경기|승리|우승|선수/i,
+    ]
+  },
+  {
+    key: 'global',
+    patterns: [
+      /\b(un|nato)\b/i,
+      /미국|중국|일본|러시아|우크라이나|이스라엘|중동|유럽|외교|정상회담|백악관|나토|관세|무역분쟁/i,
+    ]
+  },
+  {
+    key: 'society',
+    patterns: [
+      /경찰|검찰|법원|판결|구속|기소|재판|수사|교통|사고|화재|소방|지하철|교육|입시|노동|파업|노조/i,
+    ]
+  },
+  {
+    key: 'lifestyle',
+    patterns: [
+      /워라밸|주 4.5일|주 4일|직장인|퇴근|여행|맛집|소비|트렌드|mz|취미|반려동물|휴가|꿀팁/i,
+    ]
+  }
+];
+
+function detectCategory(text, title = '') {
+  const scores = {};
+
+  for (const rule of CATEGORY_RULES) {
+    let score = 0;
+    for (const pat of rule.patterns) {
+      if (title) {
+        const titleMatches = title.match(new RegExp(pat.source, 'gi'));
+        if (titleMatches) score += titleMatches.length * 5;
+      }
+      const contentMatches = text.match(new RegExp(pat.source, 'gi'));
+      if (contentMatches) score += contentMatches.length;
+    }
+    if (score > 0) scores[rule.key] = score;
+  }
+
+  let bestKey = 'society';
+  let maxScore = 0;
+  for (const [key, score] of Object.entries(scores)) {
+    if (score > maxScore) {
+      maxScore = score;
+      bestKey = key;
+    }
+  }
+
+  const found = CATEGORY_LIST.find(c => c.key === bestKey) || CATEGORY_LIST[5];
+  return { key: found.key, badge: found.badge, icon: found.icon };
+}
+
+function extractKeywords(text, title) {
+  const combined = `${title} ${text}`;
+  const words = combined.match(/[가-힣a-zA-Z0-9]{2,12}/g) || [];
+  const stopWords = new Set(['기자', '뉴스', '보도', '통해', '이번', '지난', '있는', '것으로', '따르면', '위해', '하는', '에서', '으로', '했다', '된다']);
+  const freq = {};
+  for (const w of words) {
+    if (stopWords.has(w) || w.length < 2) continue;
+    freq[w] = (freq[w] || 0) + 1;
+  }
+  return Object.entries(freq).sort((a,b) => b[1] - a[1]).slice(0, 6).map(([w]) => w);
+}
+
+function splitSentences(text) {
+  return text
+    .replace(/\r\n/g, '\n')
+    .replace(/\[.*?\]|\(.*?\)/g, '')
+    .split(/(?<=[.!?。])\s+|\n+/)
+    .map(s => s.trim())
+    .filter(s => s.length >= 15 && s.length <= 250);
+}
+
+function generateOneLineSummary(article, sentences) {
+  const { title = '', description = '' } = article;
+  if (description) {
+    const cleanDesc = description
+      .replace(/^\[.*?\]\s*/, '')
+      .replace(/\s*-\s*[가-힣A-Za-z0-9\s]+뉴스.*$/, '')
+      .replace(/[가-힣\s]+기자\s*=\s*/, '')
+      .replace(/기자입니다|기자|구독|무단\s*전재/g, '')
+      .trim();
+    if (cleanDesc.length >= 30 && cleanDesc.length <= 160 && cleanDesc !== title) {
+      return cleanDesc.endsWith('.') ? cleanDesc : `${cleanDesc}.`;
+    }
+  }
+
+  if (sentences.length > 0) {
+    const candidates = sentences.slice(0, 4);
+    let bestSentence = candidates[0];
+    let bestScore = -1;
+    const titleWords = title.match(/[가-힣a-zA-Z0-9]{2,}/g) || [];
+
+    for (const sent of candidates) {
+      if (sent.length < 25 || sent.length > 160) continue;
+      if (sent.includes('기자') || sent.includes('무단전재') || sent.includes('구독')) continue;
+
+      let score = 0;
+      for (const tw of titleWords) {
+        if (sent.includes(tw)) score += 3;
+      }
+      if (/발표|공개|착수|돌파|도입|확정|합의|출시|성공|전망|결정|강조|밝혔다|나타났다/i.test(sent)) {
+        score += 4;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestSentence = sent;
+      }
+    }
+
+    if (bestSentence) {
+      let clean = bestSentence
+        .replace(/^\[.*?\]\s*/, '')
+        .replace(/^[가-힣\s]+기자\s*=\s*/, '')
+        .replace(/^[가-힣\s]+특파원\s*=\s*/, '')
+        .trim();
+      return clean.endsWith('.') ? clean : `${clean}.`;
+    }
+  }
+
+  return `${title}에 대한 핵심 요약 및 주요 변화 포인트 브리핑입니다.`;
+}
+
+function generateDeckFromArticle(article, options = {}) {
+  const title = article.title || '뉴스 헤드라인';
+  const content = article.content || title;
+  const press = article.press || '보도매체';
+  const publishDate = article.publishDate || new Date().toISOString().split('T')[0];
+  const ogImage = article.ogImage;
+  const channelHandle = options.channelHandle || '@today_news_pick';
+
+  let category = detectCategory(content, title);
+  if (options.category && options.category !== 'auto') {
+    const customMatch = CATEGORY_LIST.find(c => c.key === options.category || c.badge === options.category);
+    if (customMatch) {
+      category = { key: customMatch.key, badge: customMatch.badge, icon: customMatch.icon };
+    } else {
+      category = { key: 'custom', badge: options.category, icon: '📌' };
+    }
+  }
+
+  const keywords = extractKeywords(content, title);
+  const sentences = splitSentences(content);
+  const oneLineSummary = generateOneLineSummary(article, sentences);
+
+  const topicImages = TOPIC_IMAGES[category.key] || TOPIC_IMAGES.society;
+  const coverImg = ogImage || topicImages[0];
+
+  const slides = [];
+
+  // 1. Cover
+  slides.push({
+    id: 's1',
+    badge: `${category.icon} ${category.badge}`,
+    title: title,
+    subtitle: oneLineSummary,
+    oneLineSummary: oneLineSummary,
+    bullets: [],
+    imageUrl: coverImg,
+    overlay: 0.65,
+    tag: 'HOT ISSUE'
+  });
+
+  // 2. Summary
+  slides.push({
+    id: 's2',
+    badge: '01 | ISSUE SUMMARY',
+    title: '무슨 일이 일어났나요?',
+    subtitle: '사건의 발단과 핵심 배경',
+    bullets: sentences.slice(0, 2).map(s => s.replace(/다\.$/, '음.')),
+    imageUrl: topicImages[1 % topicImages.length],
+    overlay: 0.65,
+    tag: '발단 요약'
+  });
+
+  // 3. Key Point
+  slides.push({
+    id: 's3',
+    badge: '02 | KEY POINT',
+    title: '주목해야 할 핵심 변화',
+    subtitle: '주요 인사이트와 달라지는 점',
+    bullets: sentences.slice(2, 4),
+    imageUrl: topicImages[2 % topicImages.length],
+    overlay: 0.65,
+    tag: '핵심 쟁점'
+  });
+
+  // 4. Market / Reaction
+  slides.push({
+    id: 's4',
+    badge: '03 | MARKET & IMPACT',
+    title: '시장과 대중의 반응은?',
+    subtitle: '관련 업계의 시선과 파급 효과',
+    bullets: sentences.slice(4, 6).length > 0 ? sentences.slice(4, 6) : [
+      '관련 업계의 긍정적 기대와 신중론이 교차하고 있습니다.',
+      '향후 후속 대책과 정책 가이드라인에 관심이 집중됩니다.'
+    ],
+    imageUrl: topicImages[0],
+    overlay: 0.65,
+    tag: '파급 효과'
+  });
+
+  // 5. Conclusion
+  slides.push({
+    id: 's5',
+    badge: '04 | CONCLUSION',
+    title: '앞으로 어떻게 될까요?',
+    subtitle: '요약 정리 & 여러분의 생각은?',
+    bullets: [
+      '단기적 이슈를 넘어 중장기적 트렌드로 안착할지 주목됩니다.',
+      '💬 여러분은 이번 변화에 대해 어떻게 생각하시나요? 댓글로 의견을 나눠보세요!'
+    ],
+    imageUrl: topicImages[1 % topicImages.length],
+    overlay: 0.7,
+    tag: '독자 토론'
+  });
+
+  const baseTags = ['카드뉴스', '뉴스요약', category.badge.replace(/\s+/g, '')];
+  const allTags = [...baseTags, ...keywords];
+
+  const caption = `📰 [${category.badge}] ${title}\n\n` +
+    `바쁜 일상 속 꼭 알아야 할 핵심 뉴스 요약입니다! 👇\n\n` +
+    slides.slice(1, 4).map(s => `• ${s.title}: ${s.bullets[0] || s.subtitle}`).join('\n') +
+    `\n\n💬 여러분의 생각은 어떠신가요? 댓글로 자유롭게 남겨주세요!\n` +
+    `[출처] ${press} (${publishDate})\n\n` +
+    allTags.map(t => `#${t}`).join(' ');
+
+  return {
+    title,
+    press,
+    publishDate,
+    url: article.url,
+    channelHandle,
+    slides,
+    tags: allTags,
+    caption,
+    aspectRatio: options.aspectRatio || '4:5',
+    theme: options.theme || 'modern-dark'
+  };
+}
