@@ -334,9 +334,39 @@ function generateDeckFromArticle(article, options = {}) {
   const topicImages = TOPIC_IMAGES[category.key] || TOPIC_IMAGES.society;
   const coverImg = ogImage || topicImages[0];
 
+  // Distribute sentences intelligently so every slide has 2 solid points
+  const total = sentences.length;
+  let issueBullets = [];
+  let pointBullets = [];
+  let impactBullets = [];
+
+  if (total >= 6) {
+    issueBullets = sentences.slice(0, 2);
+    pointBullets = sentences.slice(2, 4);
+    impactBullets = sentences.slice(4, 6);
+  } else if (total >= 4) {
+    issueBullets = [sentences[0], sentences[1]];
+    pointBullets = [sentences[2], sentences[3]];
+    impactBullets = [
+      '관련 업계 및 시장 참여자들의 관심이 집중되며 주요 화두로 떠오르고 있습니다.',
+      '향후 후속 가이드라인과 시장 대응 조치에 이목이 쏠리고 있습니다.'
+    ];
+  } else if (total >= 2) {
+    issueBullets = [sentences[0]];
+    pointBullets = [sentences[1]];
+    impactBullets = [
+      '소비자와 시장 사이에서 긍정적 기대와 우려가 교차하며 주목받고 있습니다.',
+      '관련 트렌드가 지속적으로 확대될지 업계의 시선이 집중되고 있습니다.'
+    ];
+  } else {
+    issueBullets = [`${title}에 대한 새로운 소식이 전해졌습니다.`];
+    pointBullets = ['전문가들은 이번 조치가 가져올 파급력과 변화에 주목하고 있습니다.'];
+    impactBullets = ['향후 추가적인 공식 발표와 후속 보도가 이어질 전망입니다.'];
+  }
+
   const slides = [];
 
-  // 1. Cover
+  // 1. Cover Slide
   slides.push({
     id: 's1',
     badge: `${category.icon} ${category.badge}`,
@@ -355,7 +385,7 @@ function generateDeckFromArticle(article, options = {}) {
     badge: '01 | ISSUE SUMMARY',
     title: '무슨 일이 일어났나요?',
     subtitle: '사건의 발단과 핵심 배경',
-    bullets: sentences.slice(0, 2).map(s => s.replace(/다\.$/, '음.')),
+    bullets: issueBullets,
     imageUrl: topicImages[1 % topicImages.length],
     overlay: 0.65,
     tag: '발단 요약'
@@ -367,7 +397,7 @@ function generateDeckFromArticle(article, options = {}) {
     badge: '02 | KEY POINT',
     title: '주목해야 할 핵심 변화',
     subtitle: '주요 인사이트와 달라지는 점',
-    bullets: sentences.slice(2, 4),
+    bullets: pointBullets,
     imageUrl: topicImages[2 % topicImages.length],
     overlay: 0.65,
     tag: '핵심 쟁점'
@@ -379,10 +409,7 @@ function generateDeckFromArticle(article, options = {}) {
     badge: '03 | MARKET & IMPACT',
     title: '시장과 대중의 반응은?',
     subtitle: '관련 업계의 시선과 파급 효과',
-    bullets: sentences.slice(4, 6).length > 0 ? sentences.slice(4, 6) : [
-      '관련 업계의 긍정적 기대와 신중론이 교차하고 있습니다.',
-      '향후 후속 대책과 정책 가이드라인에 관심이 집중됩니다.'
-    ],
+    bullets: impactBullets,
     imageUrl: topicImages[0],
     overlay: 0.65,
     tag: '파급 효과'

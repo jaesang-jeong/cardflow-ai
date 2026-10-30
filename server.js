@@ -147,7 +147,15 @@ app.post('/api/extract', async (req, res) => {
     for (const selector of bodySelectors) {
       const el = $(selector);
       if (el.length > 0) {
-        const text = el.find('p').map((_, p) => $(p).text().trim()).get().filter(t => t.length > 15).join('\n\n');
+        const clone = el.clone();
+        clone.find('script, style, noscript, figure, figcaption, button, select, .ad, .ads, .reporter_area, .byline, .sns_share, .sns-share, .copyright, #comment, .comment, .article_footer, .news_notice, .end_photo_org, .media_end_linked_more').remove();
+        clone.find('br').replaceWith('\n');
+        clone.find('p, div, li, tr').prepend('\n').append('\n');
+        const text = clone.text()
+          .split('\n')
+          .map(s => s.trim())
+          .filter(s => s.length >= 15 && !s.includes('기자') && !s.includes('무단전재') && !s.includes('재배포') && !s.includes('구독'))
+          .join('\n\n');
         if (text.length > articleText.length) {
           articleText = text;
         }
@@ -155,12 +163,12 @@ app.post('/api/extract', async (req, res) => {
     }
 
     // Fallback: general paragraphs if specific selectors fail
-    if (!articleText || articleText.length < 100) {
+    if (!articleText || articleText.length < 80) {
       articleText = $('p')
         .map((_, el) => $(el).text().trim())
         .get()
-        .filter(t => t.length > 20 && !t.includes('구독') && !t.includes('저작권'))
-        .slice(0, 15)
+        .filter(t => t.length > 20 && !t.includes('기자') && !t.includes('구독') && !t.includes('저작권'))
+        .slice(0, 20)
         .join('\n\n');
     }
 
