@@ -71,6 +71,59 @@ function getPressFromUrl(urlStr, parsedSiteName) {
   }
 }
 
+const NOISE_SELECTORS = [
+  'script', 'style', 'noscript', 'iframe', 'svg', 'button', 'select', 'table',
+  'figure', 'figcaption',
+  'em.img_desc', '.img_desc', '.photo_caption', '.caption', '[class*="caption"]', '[class*="Caption"]',
+  '.end_photo_org', '[class*="photo_desc"]', '[class*="image_desc"]', '[class*="summary_img"]',
+  '.ad', '.ads', '.advertisement', '[class*="banner"]', '[class*="Banner"]', '[id*="banner"]', '[id*="Banner"]',
+  '[class*="promotion"]', '[class*="Promotion"]',
+  '.reporter_area', '.byline', '[class*="byline"]', '[class*="journalist"]', '[class*="reporter"]',
+  '.sns_share', '.sns-share', '[class*="share"]',
+  '.copyright', '[class*="copyright"]', '#comment', '.comment', '[class*="comment"]',
+  '.article_footer', '.news_notice', '.media_end_linked_more',
+  '[class*="vod"]', '[class*="player"]', '[class*="video_area"]',
+  '[class*="relation"]', '[class*="recommend"]', '[class*="popular"]',
+  '[class*="subscribe"]', '[class*="channel"]'
+];
+
+function isNoiseSentence(text) {
+  if (!text || typeof text !== 'string') return true;
+  const trimmed = text.trim();
+  if (trimmed.length < 15) return true;
+
+  // 1. Photo caption bullets or markers at start
+  if (/^[▲△▼▽◆◇■□●○▶▷ⓒ\*\#\•\-]/.test(trimmed)) return true;
+
+  // 2. Photo / Image / Graphic / Video markers
+  if (/사진\s*(=|:|\/|제공|출처|캡처)/i.test(trimmed)) return true;
+  if (/\[(사진|자료사진|그래픽|도표|캡처|제공|출처|포토).*?\]/i.test(trimmed)) return true;
+  if (/\((사진|자료사진|그래픽|도표|캡처|제공|출처|포토).*?\)/i.test(trimmed)) return true;
+  if (/(연합뉴스\s*자료사진|뉴스1\s*DB|뉴시스\s*DB|게티이미지|gettyimages|공동취재단|로이터연합뉴스|AP연합뉴스|AFP연합뉴스)/i.test(trimmed)) return true;
+  if (/(유튜브|인스타그램|페이스북|방송|화면|홈페이지)\s*캡처/i.test(trimmed)) return true;
+  if (/\b(DB|캡처|자료사진)\b/i.test(trimmed)) return true;
+  if (/기사와\s*(직접적인\s*)?관련\s*(없음|이\s*없습니다)/i.test(trimmed)) return true;
+  if (/기사\s*내용과\s*(직접\s*)?무관/i.test(trimmed)) return true;
+
+  // 3. Typical photo description endings
+  if (/(모습이다|모습\.|전경이다|전경\.|장면이다|장면\.|포즈를 취하고 있다|기념촬영을 하고 있다|기념사진을 찍고 있다)\s*$/i.test(trimmed)) return true;
+
+  // 4. Banners, marketing, subscription, newsletters, channels, apps
+  if (/(구독|네이버\s*메인|채널\s*추가|카카오톡|플러스친구|친구\s*추가|앱\s*다운로드|뉴스레터|팟캐스트|팔로우|소식받기)/i.test(trimmed)) return true;
+  if (/(제보|제보하기|제보를\s*기다립니다|독자\s*제보|제보창구|이메일|02-\d{3,4}-\d{4})/i.test(trimmed)) return true;
+  if (/(바로가기|더보기|관련기사|추천기사|인기기사|많이\s*본\s*뉴스|실시간\s*인기|놓치지\s*마세요|인기\s*뉴스|오픈채팅)/i.test(trimmed)) return true;
+  if (/(무단\s*전재|재배포|저작권자|copyright|all\s*rights\s*reserved|불펌)/i.test(trimmed)) return true;
+
+  // 5. Reporter bylines / email signatures
+  if (/([가-힣]{2,5}\s*(기자|특파원|논설위원|연구원|PD|작가|팀장|국장))\s*(\[|\(|\/|<|@|\.|$)/i.test(trimmed)) return true;
+  if (/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(trimmed)) return true;
+
+  // 6. Navigation / UI noise
+  if (/^(공유|댓글|좋아요|인쇄|폰트|글자크기|스크랩|신고|수정|등록)/i.test(trimmed)) return true;
+
+  return false;
+}
+
 // 1. Article Extractor API
 app.post('/api/extract', async (req, res) => {
   const { url } = req.body;
@@ -127,7 +180,7 @@ app.post('/api/extract', async (req, res) => {
     const press = getPressFromUrl(targetUrl, siteName);
 
     // Remove noise elements
-    $('script, style, noscript, nav, header, footer, aside, .ad, .ads, .comment, #comment, .sns-share, .reporter_area, .byline').remove();
+    $(NOISE_SELECTORS.join(', ')).remove();
 
     // Collect article text from primary news selectors
     let articleText = '';
@@ -148,13 +201,18 @@ app.post('/api/extract', async (req, res) => {
       const el = $(selector);
       if (el.length > 0) {
         const clone = el.clone();
-        clone.find('script, style, noscript, figure, figcaption, button, select, .ad, .ads, .reporter_area, .byline, .sns_share, .sns-share, .copyright, #comment, .comment, .article_footer, .news_notice, .end_photo_org, .media_end_linked_more').remove();
+        clone.find(NOISE_SELECTORS.join(', ')).remove();
         clone.find('br').replaceWith('\n');
         clone.find('p, div, li, tr').prepend('\n').append('\n');
         const text = clone.text()
           .split('\n')
-          .map(s => s.trim())
-          .filter(s => s.length >= 15 && !s.includes('기자') && !s.includes('무단전재') && !s.includes('재배포') && !s.includes('구독'))
+          .map(s => s
+            .replace(/^\[.*?\]\s*/, '')
+            .replace(/^\(.*?\)\s*/, '')
+            .replace(/^[가-힣\s]{2,10}\s*(기자|특파원)\s*=\s*/, '')
+            .trim()
+          )
+          .filter(s => s.length >= 15 && !isNoiseSentence(s))
           .join('\n\n');
         if (text.length > articleText.length) {
           articleText = text;
@@ -167,7 +225,13 @@ app.post('/api/extract', async (req, res) => {
       articleText = $('p')
         .map((_, el) => $(el).text().trim())
         .get()
-        .filter(t => t.length > 20 && !t.includes('기자') && !t.includes('구독') && !t.includes('저작권'))
+        .map(s => s
+          .replace(/^\[.*?\]\s*/, '')
+          .replace(/^\(.*?\)\s*/, '')
+          .replace(/^[가-힣\s]{2,10}\s*(기자|특파원)\s*=\s*/, '')
+          .trim()
+        )
+        .filter(t => t.length >= 15 && !isNoiseSentence(t))
         .slice(0, 20)
         .join('\n\n');
     }
