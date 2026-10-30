@@ -274,6 +274,38 @@ function extractArticleDirectly() {
     }
   }
 
+  // 6. Extract all real editorial images from the article body
+  const articleImages = [];
+  if (ogImage && !ogImage.includes('favicon') && !ogImage.includes('default')) {
+    articleImages.push(ogImage);
+  }
+
+  for (const sel of bodySelectors) {
+    const el = document.querySelector(sel);
+    if (el) {
+      const imgs = el.querySelectorAll('img');
+      imgs.forEach(img => {
+        let src = img.getAttribute('data-src') || 
+                  img.getAttribute('data-original') || 
+                  img.getAttribute('data-lazy-src') || 
+                  img.getAttribute('src');
+        if (!src) return;
+        if (src.startsWith('//')) src = 'https:' + src;
+        else if (src.startsWith('/')) src = window.location.origin + src;
+
+        if (/icon|badge|logo|ad\.|banner|button|btn|blank|pixel|track|spinner|share|loading|emoticon|profile|avatar/i.test(src)) {
+          return;
+        }
+
+        const baseSrc = src.split('?')[0];
+        const exists = articleImages.some(existing => existing.split('?')[0] === baseSrc);
+        if (!exists) {
+          articleImages.push(src);
+        }
+      });
+    }
+  }
+
   const ogDesc = document.querySelector('meta[property="og:description"]')?.getAttribute('content') ||
                  document.querySelector('meta[name="description"]')?.getAttribute('content') || '';
 
@@ -285,6 +317,7 @@ function extractArticleDirectly() {
     description: ogDesc,
     content: bodyText || ogDesc || cleanTitle,
     ogImage: ogImage || undefined,
+    images: articleImages,
     domain: host,
   };
 }
@@ -502,12 +535,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  const btnCycleImg = document.getElementById('btnCycleArticleImage');
+  if (btnCycleImg) {
+    btnCycleImg.addEventListener('click', () => {
+      if (!currentDeck || !currentArticle) return;
+      const images = (Array.isArray(currentArticle.images) && currentArticle.images.length > 0)
+        ? currentArticle.images
+        : (currentArticle.ogImage ? [currentArticle.ogImage] : []);
+
+      if (images.length === 0) {
+        showToast('적용 가능한 기사 사진이 없습니다.');
+        return;
+      }
+
+      const slide = currentDeck.slides[activeSlideIndex];
+      const curIdx = images.indexOf(slide.imageUrl);
+      const nextIdx = (curIdx + 1) % images.length;
+      slide.imageUrl = images[nextIdx];
+      updateCanvas();
+      showToast(`기사 사진 ${nextIdx + 1}/${images.length} 적용됨`);
+    });
+  }
+
   document.getElementById('btnAiImage').addEventListener('click', () => {
     if (!currentDeck) return;
     const slide = currentDeck.slides[activeSlideIndex];
-    const encoded = encodeURIComponent(`${slide.title}, modern editorial news photography, 4k`);
-    slide.imageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=1080&height=1080&seed=${Date.now()}`;
-    showToast('AI 이미지 생성 중...');
+    const tagsStr = (currentDeck.tags || []).slice(0, 3).join(', ');
+    const prompt = `${slide.title}, ${tagsStr}, editorial journalism photography, cinematic lighting, ultra-realistic, 4k`;
+    const encoded = encodeURIComponent(prompt);
+    slide.imageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=1080&height=1350&nologo=true&seed=${Date.now()}`;
+    showToast('본문 맞춤 AI 이미지 생성 중...');
     updateCanvas();
   });
 

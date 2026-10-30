@@ -113,6 +113,7 @@ export const App: React.FC = () => {
         publishDate: article.publishDate,
         sourceUrl: article.url,
         ogImage: article.ogImage,
+        images: article.images,
         description: article.description,
         options,
       });

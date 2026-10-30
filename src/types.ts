@@ -62,6 +62,7 @@ export interface CardDeck {
   showSwipeHint: boolean;
   tags: string[];
   caption: string;
+  images?: string[];
 }
 
 export interface ScrapedArticle {
@@ -72,6 +73,7 @@ export interface ScrapedArticle {
   description: string;
   content: string;
   ogImage?: string;
+  images?: string[];
   domain: string;
   tags: string[];
 }

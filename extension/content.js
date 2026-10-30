@@ -207,6 +207,38 @@ function extractArticleFromCurrentPage() {
     }
   }
 
+  // 6. Extract all real editorial images from the article body
+  const articleImages = [];
+  if (ogImage && !ogImage.includes('favicon') && !ogImage.includes('default')) {
+    articleImages.push(ogImage);
+  }
+
+  for (const sel of bodySelectors) {
+    const el = document.querySelector(sel);
+    if (el) {
+      const imgs = el.querySelectorAll('img');
+      imgs.forEach(img => {
+        let src = img.getAttribute('data-src') || 
+                  img.getAttribute('data-original') || 
+                  img.getAttribute('data-lazy-src') || 
+                  img.getAttribute('src');
+        if (!src) return;
+        if (src.startsWith('//')) src = 'https:' + src;
+        else if (src.startsWith('/')) src = window.location.origin + src;
+
+        if (/icon|badge|logo|ad\.|banner|button|btn|blank|pixel|track|spinner|share|loading|emoticon|profile|avatar/i.test(src)) {
+          return;
+        }
+
+        const baseSrc = src.split('?')[0];
+        const exists = articleImages.some(existing => existing.split('?')[0] === baseSrc);
+        if (!exists) {
+          articleImages.push(src);
+        }
+      });
+    }
+  }
+
   const ogDesc = document.querySelector('meta[property="og:description"]')?.getAttribute('content') ||
                  document.querySelector('meta[name="description"]')?.getAttribute('content') || '';
 
@@ -218,6 +250,7 @@ function extractArticleFromCurrentPage() {
     description: ogDesc,
     content: bodyText || ogDesc || cleanTitle,
     ogImage: ogImage || undefined,
+    images: articleImages,
     domain: host,
   };
 }

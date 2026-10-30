@@ -453,6 +453,7 @@ export function generateCardDeckFromText(params: {
   publishDate?: string;
   sourceUrl?: string;
   ogImage?: string;
+  images?: string[];
   description?: string;
   options?: Partial<GenerationOptions>;
 }): CardDeck {
@@ -463,6 +464,7 @@ export function generateCardDeckFromText(params: {
     publishDate = new Date().toISOString().split('T')[0],
     sourceUrl,
     ogImage,
+    images = [],
     description,
     options = {}
   } = params;
@@ -487,9 +489,22 @@ export function generateCardDeckFromText(params: {
   const keywords = extractKeywords(content, title);
   const sentences = splitSentences(content);
 
+  // Collect actual article images
+  const rawImages = (Array.isArray(images) && images.length > 0)
+    ? images
+    : (ogImage ? [ogImage] : []);
+
   // Fallback image pool
   const topicImageList = TOPIC_IMAGES[category.key] || TOPIC_IMAGES.default;
-  const coverImage = ogImage || topicImageList[0];
+  const fallbackImage = topicImageList[0];
+  const mainImage = rawImages[0] || fallbackImage;
+
+  // Real article photos assigned sequentially to each slide for 100% relevance
+  const imgSlide1 = mainImage;
+  const imgSlide2 = rawImages[1] || mainImage;
+  const imgSlide3 = rawImages[2] || rawImages[1] || mainImage;
+  const imgSlide4 = rawImages[3] || rawImages[1] || mainImage;
+  const imgSlide5 = mainImage;
 
   // Clean headline
   let cleanTitle = title
@@ -512,7 +527,7 @@ export function generateCardDeckFromText(params: {
     subtitle: oneLineSummary,
     oneLineSummary: oneLineSummary,
     bullets: [],
-    imageUrl: coverImage,
+    imageUrl: imgSlide1,
     imagePrompt: `${keywords.slice(0, 3).join(', ')}, high quality journalism photography`,
     imageOverlayOpacity: 0.65,
     layout: 'hero',
@@ -531,7 +546,7 @@ export function generateCardDeckFromText(params: {
       '관련 분야에서 새로운 정책 및 시장 변화가 본격화되었습니다.',
       '업계 및 소비자들의 관심이 집중되며 주요 화두로 부상하고 있습니다.'
     ],
-    imageUrl: topicImageList[1 % topicImageList.length],
+    imageUrl: imgSlide2,
     imageOverlayOpacity: 0.6,
     layout: 'bullet-list',
     highlightTag: '핵심 쟁점',
@@ -551,7 +566,7 @@ export function generateCardDeckFromText(params: {
           '전문가들은 이번 조치가 가져올 파급력에 주목하고 있습니다.',
           '기존 생태계와의 차별화된 전략이 중요한 분기점이 될 전망입니다.'
         ],
-    imageUrl: topicImageList[2 % topicImageList.length],
+    imageUrl: imgSlide3,
     imageOverlayOpacity: 0.6,
     layout: 'bullet-list',
     highlightTag: '변화 포인트',
@@ -572,7 +587,7 @@ export function generateCardDeckFromText(params: {
             '소비자와 시장 참여자들 사이에서 긍정적 기대와 우려가 교차하고 있습니다.',
             '향후 관련 가이드라인과 후속 대책 발표에 이목이 쏠립니다.'
           ],
-      imageUrl: topicImageList[3 % topicImageList.length],
+      imageUrl: imgSlide4,
       imageOverlayOpacity: 0.6,
       layout: 'bullet-list',
       highlightTag: '파급 효과',
@@ -591,7 +606,7 @@ export function generateCardDeckFromText(params: {
       '관련 소식은 지속적으로 업데이트될 예정입니다.',
       '💬 여러분은 이번 변화에 대해 어떻게 생각하시나요? 댓글로 남겨주세요!'
     ],
-    imageUrl: topicImageList[4 % topicImageList.length],
+    imageUrl: imgSlide5,
     imageOverlayOpacity: 0.7,
     layout: 'left',
     highlightTag: '토론 & 질문',

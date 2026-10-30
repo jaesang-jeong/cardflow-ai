@@ -179,6 +179,35 @@ app.post('/api/extract', async (req, res) => {
 
     const press = getPressFromUrl(targetUrl, siteName);
 
+    // Extract editorial article images before removing photo caption wrappers
+    const articleImages = [];
+    if (ogImage && !ogImage.includes('favicon') && !ogImage.includes('default')) {
+      articleImages.push(ogImage);
+    }
+
+    for (const selector of bodySelectors) {
+      const el = $(selector);
+      if (el.length > 0) {
+        el.find('img').each((_, imgEl) => {
+          let src = $(imgEl).attr('data-src') || $(imgEl).attr('data-original') || $(imgEl).attr('src');
+          if (!src) return;
+          if (src.startsWith('//')) src = 'https:' + src;
+          else if (src.startsWith('/')) {
+            try {
+              const u = new URL(targetUrl);
+              src = `${u.origin}${src}`;
+            } catch (e) {}
+          }
+          if (!/icon|badge|logo|ad\.|banner|button|btn|blank|pixel|track|spinner|share|loading|emoticon|profile/i.test(src)) {
+            const baseSrc = src.split('?')[0];
+            if (!articleImages.some(img => img.split('?')[0] === baseSrc)) {
+              articleImages.push(src);
+            }
+          }
+        });
+      }
+    }
+
     // Remove noise elements
     $(NOISE_SELECTORS.join(', ')).remove();
 
@@ -254,6 +283,7 @@ app.post('/api/extract', async (req, res) => {
       description: ogDesc,
       content: articleText || ogDesc || cleanTitle,
       ogImage: ogImage || undefined,
+      images: articleImages,
       domain: new URL(targetUrl).hostname,
     });
   } catch (error) {

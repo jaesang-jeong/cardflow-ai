@@ -369,8 +369,21 @@ function generateDeckFromArticle(article, options = {}) {
   const sentences = splitSentences(content);
   const oneLineSummary = generateOneLineSummary(article, sentences);
 
+  // Collect actual article images
+  const rawImages = (Array.isArray(article.images) && article.images.length > 0)
+    ? article.images
+    : (article.ogImage ? [article.ogImage] : []);
+
   const topicImages = TOPIC_IMAGES[category.key] || TOPIC_IMAGES.society;
-  const coverImg = ogImage || topicImages[0];
+  const fallbackImg = topicImages[0];
+  const mainImg = rawImages[0] || fallbackImg;
+
+  // Real article photos assigned sequentially to each slide for 100% relevance
+  const imgSlide1 = mainImg;
+  const imgSlide2 = rawImages[1] || mainImg;
+  const imgSlide3 = rawImages[2] || rawImages[1] || mainImg;
+  const imgSlide4 = rawImages[3] || rawImages[1] || mainImg;
+  const imgSlide5 = mainImg;
 
   // Distribute sentences intelligently so every slide has 2 solid points
   const total = sentences.length;
@@ -412,7 +425,7 @@ function generateDeckFromArticle(article, options = {}) {
     subtitle: oneLineSummary,
     oneLineSummary: oneLineSummary,
     bullets: [],
-    imageUrl: coverImg,
+    imageUrl: imgSlide1,
     overlay: 0.65,
     tag: 'HOT ISSUE'
   });
@@ -424,7 +437,7 @@ function generateDeckFromArticle(article, options = {}) {
     title: '무슨 일이 일어났나요?',
     subtitle: '사건의 발단과 핵심 배경',
     bullets: issueBullets,
-    imageUrl: topicImages[1 % topicImages.length],
+    imageUrl: imgSlide2,
     overlay: 0.65,
     tag: '발단 요약'
   });
@@ -436,7 +449,7 @@ function generateDeckFromArticle(article, options = {}) {
     title: '주목해야 할 핵심 변화',
     subtitle: '주요 인사이트와 달라지는 점',
     bullets: pointBullets,
-    imageUrl: topicImages[2 % topicImages.length],
+    imageUrl: imgSlide3,
     overlay: 0.65,
     tag: '핵심 쟁점'
   });
@@ -448,7 +461,7 @@ function generateDeckFromArticle(article, options = {}) {
     title: '시장과 대중의 반응은?',
     subtitle: '관련 업계의 시선과 파급 효과',
     bullets: impactBullets,
-    imageUrl: topicImages[0],
+    imageUrl: imgSlide4,
     overlay: 0.65,
     tag: '파급 효과'
   });
@@ -463,7 +476,7 @@ function generateDeckFromArticle(article, options = {}) {
       '단기적 이슈를 넘어 중장기적 트렌드로 안착할지 주목됩니다.',
       '💬 여러분은 이번 변화에 대해 어떻게 생각하시나요? 댓글로 의견을 나눠보세요!'
     ],
-    imageUrl: topicImages[1 % topicImages.length],
+    imageUrl: imgSlide5,
     overlay: 0.7,
     tag: '독자 토론'
   });
