@@ -71,9 +71,13 @@ export const CardCanvas = forwardRef<HTMLDivElement, CardCanvasProps>(
 
         {/* Subtle Vignette Gradient for Depth */}
         <div
-          className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-t from-black/80 via-transparent to-black/40"
+          className={`absolute inset-0 z-10 pointer-events-none ${
+            isCover
+              ? 'bg-gradient-to-t from-black/95 via-black/65 via-50% to-transparent'
+              : 'bg-gradient-to-t from-black/80 via-transparent to-black/40'
+          }`}
           style={{
-            opacity: theme.id === 'clean-white' ? 0.05 : 0.7,
+            opacity: theme.id === 'clean-white' ? 0.05 : 0.85,
           }}
         />
 
@@ -98,52 +102,70 @@ export const CardCanvas = forwardRef<HTMLDivElement, CardCanvasProps>(
         </div>
 
         {/* ================= MIDDLE CONTENT ================= */}
-        <div className="relative z-20 px-6 sm:px-9 py-4 flex-1 flex flex-col justify-center">
-          {/* Category Badge / Highlight Tag */}
-          <div className="flex items-center space-x-2 mb-3 sm:mb-4">
-            {slide.badge && (
-              <span
-                className={`px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider backdrop-blur-md border shadow-sm ${theme.accentBadge}`}
+        <div
+          className={`relative z-20 px-6 sm:px-9 flex-1 flex flex-col ${
+            isCover ? 'justify-end pb-3 sm:pb-4' : 'justify-center py-4'
+          }`}
+        >
+          <div className={isCover ? 'mt-auto flex flex-col justify-end' : ''}>
+            {/* Category Badge / Highlight Tag */}
+            <div className="flex items-center space-x-2 mb-2 sm:mb-2.5">
+              {slide.badge && (
+                <span
+                  className={`px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider backdrop-blur-md border shadow-sm ${theme.accentBadge}`}
+                >
+                  {slide.badge}
+                </span>
+              )}
+              {slide.highlightTag && !isCover && (
+                <span
+                  className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold backdrop-blur-sm ${theme.tagBg}`}
+                >
+                  #{slide.highlightTag}
+                </span>
+              )}
+            </div>
+
+            {/* Main Title / Headline */}
+            <h2
+              className={`font-black tracking-tight leading-snug drop-shadow-md break-keep ${
+                isCover
+                  ? 'text-2xl sm:text-3xl md:text-4xl'
+                  : 'text-xl sm:text-2xl md:text-3xl'
+              }`}
+              style={{
+                color: isCover && proxiedImg ? '#ffffff' : theme.textPrimary,
+                textShadow: proxiedImg ? '0 2px 10px rgba(0,0,0,0.5)' : 'none',
+              }}
+            >
+              {slide.title}
+            </h2>
+
+            {/* One-Line Summary Box on Cover Slide (Bottom Anchored) */}
+            {isCover && (slide.oneLineSummary || slide.subtitle) && (
+              <div
+                className={`mt-3 sm:mt-3.5 p-3.5 sm:p-4 rounded-xl backdrop-blur-md border shadow-lg ${
+                  theme.id === 'clean-white' && !proxiedImg
+                    ? 'bg-slate-100/90 border-slate-300 text-slate-800'
+                    : 'bg-black/60 border-white/20 text-slate-100'
+                }`}
               >
-                {slide.badge}
-              </span>
-            )}
-            {slide.highlightTag && !isCover && (
-              <span
-                className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold backdrop-blur-sm ${theme.tagBg}`}
-              >
-                #{slide.highlightTag}
-              </span>
+                <div className="flex items-center space-x-1.5 text-xs font-bold text-amber-300 mb-1">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>기사 1줄 핵심 요약</span>
+                </div>
+                <p
+                  className={`text-xs sm:text-sm font-medium leading-relaxed break-keep ${
+                    theme.id === 'clean-white' && !proxiedImg
+                      ? 'text-slate-800'
+                      : 'text-slate-100'
+                  }`}
+                >
+                  {slide.oneLineSummary || slide.subtitle}
+                </p>
+              </div>
             )}
           </div>
-
-          {/* Main Title / Headline */}
-          <h2
-            className={`font-black tracking-tight leading-snug drop-shadow-md break-keep ${
-              isCover
-                ? 'text-2xl sm:text-3xl md:text-4xl text-white'
-                : 'text-xl sm:text-2xl md:text-3xl'
-            }`}
-            style={{
-              color: isCover ? '#ffffff' : theme.textPrimary,
-              textShadow: '0 2px 10px rgba(0,0,0,0.5)',
-            }}
-          >
-            {slide.title}
-          </h2>
-
-          {/* One-Line Summary Box on Cover Slide */}
-          {isCover && (slide.oneLineSummary || slide.subtitle) && (
-            <div className="mt-4 sm:mt-5 p-3.5 sm:p-4 rounded-xl bg-black/45 backdrop-blur-md border border-white/20 shadow-lg">
-              <div className="flex items-center space-x-1.5 text-xs font-bold text-amber-300 mb-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>기사 1줄 핵심 요약</span>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-100 font-medium leading-relaxed break-keep">
-                {slide.oneLineSummary || slide.subtitle}
-              </p>
-            </div>
-          )}
 
           {/* Subtitle (for non-cover slides) */}
           {!isCover && slide.subtitle && (
@@ -189,7 +211,7 @@ export const CardCanvas = forwardRef<HTMLDivElement, CardCanvasProps>(
         </div>
 
         {/* ================= BOTTOM BAR ================= */}
-        <div className="relative z-20 p-6 sm:p-8 pt-2 flex items-center justify-between border-t border-white/10 bg-black/20 backdrop-blur-sm">
+        <div className="relative z-20 px-6 sm:px-8 py-3.5 sm:py-4 flex items-center justify-between border-t border-white/10 bg-black/20 backdrop-blur-sm">
           {/* Press / Source Badge */}
           {deck.showSourceBadge && (
             <div className="flex items-center space-x-2 text-xs text-slate-300">

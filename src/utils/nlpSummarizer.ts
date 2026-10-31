@@ -626,7 +626,7 @@ export function generateCardDeckFromText(params: {
         sourceUrl ? `원문 링크: ${sourceUrl}` : '정확하고 신속한 정보 전달을 지향합니다.',
         '본 카드뉴스는 원문 보도를 바탕으로 요약 제작되었습니다.'
       ],
-      imageUrl: coverImage,
+      imageUrl: mainImage,
       imageOverlayOpacity: 0.8,
       layout: 'center',
       highlightTag: '보도 출처',

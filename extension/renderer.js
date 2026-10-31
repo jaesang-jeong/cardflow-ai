@@ -85,9 +85,16 @@ async function renderCardToCanvas(canvas, slide, deck, slideIndex, totalSlides) 
 
   // 4. Subtle Vignette Gradient
   const grad = ctx.createLinearGradient(0, 0, 0, height);
-  grad.addColorStop(0, 'rgba(0, 0, 0, 0.4)');
-  grad.addColorStop(0.5, 'rgba(0, 0, 0, 0.05)');
-  grad.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
+  if (isCover) {
+    grad.addColorStop(0, 'rgba(0, 0, 0, 0.15)');
+    grad.addColorStop(0.35, 'rgba(0, 0, 0, 0.05)');
+    grad.addColorStop(0.55, 'rgba(0, 0, 0, 0.55)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
+  } else {
+    grad.addColorStop(0, 'rgba(0, 0, 0, 0.4)');
+    grad.addColorStop(0.5, 'rgba(0, 0, 0, 0.05)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
+  }
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, width, height);
 
@@ -135,6 +142,29 @@ async function renderCardToCanvas(canvas, slide, deck, slideIndex, totalSlides) 
 
   // 6. Middle Content
   let currentY = topY + 120;
+  const maxTitleW = width - (paddingX * 2);
+
+  // For Cover Slide: Anchor headline and summary firmly at the bottom
+  if (isCover) {
+    const badgeH = slide.badge ? 76 : 0;
+
+    ctx.font = '900 68px sans-serif';
+    const preTitleLines = wrapText(ctx, slide.title, maxTitleW);
+    const titleH = preTitleLines.length * 84;
+
+    let sumBoxH = 0;
+    if (slide.oneLineSummary || slide.subtitle) {
+      const summaryText = slide.oneLineSummary || slide.subtitle;
+      ctx.font = '500 32px sans-serif';
+      const preSumLines = wrapText(ctx, summaryText, maxTitleW - 60);
+      sumBoxH = (preSumLines.length * 46) + 70 + 28;
+    }
+
+    const totalCoverContentH = badgeH + titleH + sumBoxH;
+    const bottomBarLimit = (height - 80) - 45; // 45px breathing space above bottom bar divider
+    const targetY = bottomBarLimit - totalCoverContentH;
+    currentY = Math.max(topY + 60, targetY);
+  }
 
   // Category Badge
   if (slide.badge) {
