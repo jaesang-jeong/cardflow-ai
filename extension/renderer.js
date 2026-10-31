@@ -185,7 +185,6 @@ async function renderCardToCanvas(canvas, slide, deck, slideIndex, totalSlides) 
   // Title (Headline)
   ctx.font = isCover ? '900 68px sans-serif' : 'bold 56px sans-serif';
   ctx.fillStyle = isCover ? '#ffffff' : theme.textColor;
-  const maxTitleW = width - (paddingX * 2);
   const titleLines = wrapText(ctx, slide.title, maxTitleW);
 
   for (const line of titleLines) {

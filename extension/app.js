@@ -155,14 +155,25 @@ function extractArticleDirectly() {
   // 5. Body Text Extraction (Handling Naver, Daum, Chosun, YNA, etc.)
   const bodySelectors = [
     '#dic_area',                                      // Naver News
-    '#articeBody',                                    // Daum News
-    '#article_body', '.article_body',                 // Chosun, Joongang
+    '#newsct_article',                                // Naver News modern container
+    '.newsct_article',                                // Naver News
+    '.article_view',                                  // Daum News modern
+    '#articleBody',                                   // Daum / Korean press
+    '#articeBody',                                    // Daum typo fallback
+    'section[dmcf-sid]',                              // Daum news content sections
     '#article-view-content-div',                      // General Korean Press
+    '#article_body', '.article_body',                 // Chosun, Joongang
+    '.article-body', '#article-body',                 // General press
     '.news_cnt', '#news_body_area',                   // Donga, Hankyung
     '.story-news', '.view_con',                       // YNA, Newsis
     '.article-content', '.article_text',              // SBS, MBC, KBS
-    'article', '[itemprop="articleBody"]',
-    'main', '.post-content', '.entry-content'
+    '#real-artcl', '#articleContnts',                 // Nate News
+    '.art_body',                                      // Kyunghyang
+    '.editor-content',                                // Hankook Ilbo
+    '[itemprop="articleBody"]',
+    'article',
+    'main',
+    '.post-content', '.entry-content'
   ];
 
   const NOISE_SELECTORS = [
@@ -181,6 +192,20 @@ function extractArticleDirectly() {
     '[class*="subscribe"]', '[class*="channel"]'
   ];
 
+  function cleanRawText(raw) {
+    if (!raw) return '';
+    return raw
+      .replace(/\[(?:사진|자료사진|그래픽|도표|캡처|제공|출처|포토|단독|속보)[\s\S]*?\]/gi, ' ')
+      .replace(/\((?:사진|자료사진|그래픽|도표|캡처|제공|출처|포토)[\s\S]*?\)/gi, ' ')
+      .replace(/\[\s*[^\]]*(?:재판매|저작권자|무단\s*전재|DB|copyright)[\s\S]*?\]/gi, ' ')
+      .replace(/\(\s*[^\)]*(?:재판매|저작권자|무단\s*전재|DB|copyright)[\s\S]*?\)/gi, ' ')
+      .replace(/\([가-힣\s=]+(?:뉴스|통신|일보|신문|방송|연합뉴스)\)\s*[가-힣\s]{2,8}\s*(?:기자|특파원)?\s*=\s*/g, ' ')
+      .replace(/^[가-힣\s]{2,8}\s*(?:기자|특파원)\s*=\s*/g, ' ')
+      .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, ' ')
+      .replace(/\t/g, ' ')
+      .replace(/[ \u00a0\u2000-\u200b]+/g, ' ');
+  }
+
   function isNoiseSentence(text) {
     if (!text || typeof text !== 'string') return true;
     const trimmed = text.trim();
@@ -189,31 +214,23 @@ function extractArticleDirectly() {
     // 1. Photo caption bullets or markers at start
     if (/^[▲△▼▽◆◇■□●○▶▷ⓒ\*\#\•\-]/.test(trimmed)) return true;
 
-    // 2. Photo / Image / Graphic / Video markers
-    if (/사진\s*(=|:|\/|제공|출처|캡처)/i.test(trimmed)) return true;
-    if (/\[(사진|자료사진|그래픽|도표|캡처|제공|출처|포토).*?\]/i.test(trimmed)) return true;
-    if (/\((사진|자료사진|그래픽|도표|캡처|제공|출처|포토).*?\)/i.test(trimmed)) return true;
-    if (/(연합뉴스\s*자료사진|뉴스1\s*DB|뉴시스\s*DB|게티이미지|gettyimages|공동취재단|로이터연합뉴스|AP연합뉴스|AFP연합뉴스)/i.test(trimmed)) return true;
-    if (/(유튜브|인스타그램|페이스북|방송|화면|홈페이지)\s*캡처/i.test(trimmed)) return true;
-    if (/\b(DB|캡처|자료사진)\b/i.test(trimmed)) return true;
-    if (/기사와\s*(직접적인\s*)?관련\s*(없음|이\s*없습니다)/i.test(trimmed)) return true;
-    if (/기사\s*내용과\s*(직접\s*)?무관/i.test(trimmed)) return true;
+    // 2. Pure photo / graphic / copyright caption lines
+    if (/^(사진|자료사진|그래픽|도표|출처|캡처)\s*(=|:|\/)/i.test(trimmed)) return true;
+    if (/(기념촬영을 하고 있다|기념사진을 찍고 있다|포즈를 취하고 있다)\s*$/i.test(trimmed)) return true;
+    if (/^(저작권자|무단\s*전재|재배포\s*금지|all rights reserved|copyright)/i.test(trimmed)) return true;
 
-    // 3. Typical photo description endings
-    if (/(모습이다|모습\.|전경이다|전경\.|장면이다|장면\.|포즈를 취하고 있다|기념촬영을 하고 있다|기념사진을 찍고 있다)\s*$/i.test(trimmed)) return true;
-
-    // 4. Banners, marketing, subscription, newsletters, channels, apps
-    if (/(구독|네이버\s*메인|채널\s*추가|카카오톡|플러스친구|친구\s*추가|앱\s*다운로드|뉴스레터|팟캐스트|팔로우|소식받기)/i.test(trimmed)) return true;
-    if (/(제보|제보하기|제보를\s*기다립니다|독자\s*제보|제보창구|이메일|02-\d{3,4}-\d{4})/i.test(trimmed)) return true;
-    if (/(바로가기|더보기|관련기사|추천기사|인기기사|많이\s*본\s*뉴스|실시간\s*인기|놓치지\s*마세요|인기\s*뉴스|오픈채팅)/i.test(trimmed)) return true;
-    if (/(무단\s*전재|재배포|저작권자|copyright|all\s*rights\s*reserved|불펌)/i.test(trimmed)) return true;
-
-    // 5. Reporter bylines / email signatures
-    if (/([가-힣]{2,5}\s*(기자|특파원|논설위원|연구원|PD|작가|팀장|국장))\s*(\[|\(|\/|<|@|\.|$)/i.test(trimmed)) return true;
-    if (/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(trimmed)) return true;
-
-    // 6. Navigation / UI noise
-    if (/^(공유|댓글|좋아요|인쇄|폰트|글자크기|스크랩|신고|수정|등록)/i.test(trimmed)) return true;
+    // 3. Short standalone noise lines (< 60 chars)
+    if (trimmed.length < 60) {
+      if (/(연합뉴스\s*자료사진|뉴스1\s*DB|뉴시스\s*DB|게티이미지|gettyimages)/i.test(trimmed)) return true;
+      if (/(모습이다|모습\.|전경이다|전경\.|장면이다|장면\.)\s*$/i.test(trimmed)) return true;
+      if (/(기사와\s*직접적인\s*관련\s*없음|기사\s*내용과\s*무관)/i.test(trimmed)) return true;
+      if (/(네이버\s*메인|채널\s*추가|플러스친구|앱\s*다운로드|뉴스레터\s*구독|소식받기)/i.test(trimmed)) return true;
+      if (/(제보를\s*기다립니다|독자\s*제보|제보창구|02-\d{3,4}-\d{4})/i.test(trimmed)) return true;
+      if (/(관련기사\s*더보기|추천기사|인기기사|많이\s*본\s*뉴스|실시간\s*인기|놓치지\s*마세요)/i.test(trimmed)) return true;
+      if (/(무단\s*전재|재배포\s*금지|불펌\s*금지)/i.test(trimmed)) return true;
+      if (/^[가-힣\s]{2,10}\s*(기자|특파원|논설위원)\s*(\[|\(|\/|<|@|\.|$)/i.test(trimmed)) return true;
+      if (/^(공유|댓글|좋아요|인쇄|폰트|글자크기|스크랩|신고|수정|등록)/i.test(trimmed)) return true;
+    }
 
     return false;
   }
@@ -234,15 +251,12 @@ function extractArticleDirectly() {
     });
 
     const raw = clone.innerText || clone.textContent || '';
-    return raw
-      .split('\n')
-      .map(s => s
-        .replace(/^\[.*?\]\s*/, '')
-        .replace(/^\(.*?\)\s*/, '')
-        .replace(/^[가-힣\s]{2,10}\s*(기자|특파원)\s*=\s*/, '')
-        .trim()
-      )
-      .filter(s => s.length >= 15 && !isNoiseSentence(s))
+    const cleaned = cleanRawText(raw);
+
+    return cleaned
+      .split(/(?<=[.!?。])\s+|\n+/)
+      .map(s => s.trim())
+      .filter(s => s.length >= 18 && !isNoiseSentence(s))
       .join('\n\n');
   }
 
@@ -333,32 +347,61 @@ async function extractFromActiveTab() {
       return;
     }
 
-    // 1. Direct Script Execution (works even without content script injection)
+    let articleData = null;
+
+    // 1. Direct Script Execution (works directly in active tab context)
     try {
       const results = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: extractArticleDirectly
       });
 
-      if (results && results[0]?.result && results[0].result.content && results[0].result.content.length > 30) {
-        loadDeck(results[0].result);
-        showToast('현재 기사 본문 추출 및 요약 완료!');
-        return;
+      if (results && results[0]?.result && results[0].result.content && results[0].result.content.length > 50) {
+        articleData = results[0].result;
       }
     } catch (scriptErr) {
-      console.warn('executeScript failed, trying tabs.sendMessage:', scriptErr);
+      console.warn('executeScript failed, trying backend fallback:', scriptErr);
     }
 
-    // 2. Messaging Fallback (content script)
-    chrome.tabs.sendMessage(tab.id, { action: 'EXTRACT_ARTICLE' }, (response) => {
-      if (!chrome.runtime.lastError && response && response.success && response.data?.content && response.data.content.length > 30) {
-        loadDeck(response.data);
-        showToast('현재 기사 추출 및 요약 완료!');
-      } else {
-        loadDeck(DEFAULT_ARTICLE);
-        showToast('본문 추출 불가로 예시 기사를 로드했습니다.');
+    // 2. Local Backend Studio Fallback (/api/extract)
+    if (!articleData && tab.url && (tab.url.startsWith('http://') || tab.url.startsWith('https://'))) {
+      try {
+        const resp = await fetch('http://localhost:3000/api/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: tab.url })
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data && data.content && data.content.length > 50) {
+            articleData = data;
+          }
+        }
+      } catch (backendErr) {
+        console.warn('Backend extraction fallback notice:', backendErr);
       }
-    });
+    }
+
+    // 3. Content Script Messaging Fallback
+    if (!articleData) {
+      articleData = await new Promise((resolve) => {
+        chrome.tabs.sendMessage(tab.id, { action: 'EXTRACT_ARTICLE' }, (response) => {
+          if (!chrome.runtime.lastError && response && response.success && response.data?.content && response.data.content.length > 50) {
+            resolve(response.data);
+          } else {
+            resolve(null);
+          }
+        });
+      });
+    }
+
+    if (articleData && articleData.content && articleData.content.length > 30) {
+      loadDeck(articleData);
+      showToast('현재 기사 본문 추출 및 요약 완료!');
+    } else {
+      loadDeck(DEFAULT_ARTICLE);
+      showToast('본문 추출 불가로 예시 기사를 로드했습니다.');
+    }
   } catch (err) {
     console.error('Extraction error:', err);
     loadDeck(DEFAULT_ARTICLE);

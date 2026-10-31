@@ -183,6 +183,20 @@ function extractKeywords(text, title) {
   return Object.entries(freq).sort((a,b) => b[1] - a[1]).slice(0, 6).map(([w]) => w);
 }
 
+function cleanRawText(raw) {
+  if (!raw) return '';
+  return raw
+    .replace(/\[(?:사진|자료사진|그래픽|도표|캡처|제공|출처|포토|단독|속보)[\s\S]*?\]/gi, ' ')
+    .replace(/\((?:사진|자료사진|그래픽|도표|캡처|제공|출처|포토)[\s\S]*?\)/gi, ' ')
+    .replace(/\[\s*[^\]]*(?:재판매|저작권자|무단\s*전재|DB|copyright)[\s\S]*?\]/gi, ' ')
+    .replace(/\(\s*[^\)]*(?:재판매|저작권자|무단\s*전재|DB|copyright)[\s\S]*?\)/gi, ' ')
+    .replace(/\([가-힣\s=]+(?:뉴스|통신|일보|신문|방송|연합뉴스)\)\s*[가-힣\s]{2,8}\s*(?:기자|특파원)?\s*=\s*/g, ' ')
+    .replace(/^[가-힣\s]{2,8}\s*(?:기자|특파원)\s*=\s*/g, ' ')
+    .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, ' ')
+    .replace(/\t/g, ' ')
+    .replace(/[ \u00a0\u2000-\u200b]+/g, ' ');
+}
+
 function isNoiseSentence(text) {
   if (!text || typeof text !== 'string') return true;
   const trimmed = text.trim();
@@ -191,37 +205,31 @@ function isNoiseSentence(text) {
   // 1. Photo caption bullets or markers at start
   if (/^[▲△▼▽◆◇■□●○▶▷ⓒ\*\#\•\-]/.test(trimmed)) return true;
 
-  // 2. Photo / Image / Graphic / Video markers
-  if (/사진\s*(=|:|\/|제공|출처|캡처)/i.test(trimmed)) return true;
-  if (/\[(사진|자료사진|그래픽|도표|캡처|제공|출처|포토).*?\]/i.test(trimmed)) return true;
-  if (/\((사진|자료사진|그래픽|도표|캡처|제공|출처|포토).*?\)/i.test(trimmed)) return true;
-  if (/(연합뉴스\s*자료사진|뉴스1\s*DB|뉴시스\s*DB|게티이미지|gettyimages|공동취재단|로이터연합뉴스|AP연합뉴스|AFP연합뉴스)/i.test(trimmed)) return true;
-  if (/(유튜브|인스타그램|페이스북|방송|화면|홈페이지)\s*캡처/i.test(trimmed)) return true;
-  if (/\b(DB|캡처|자료사진)\b/i.test(trimmed)) return true;
-  if (/기사와\s*(직접적인\s*)?관련\s*(없음|이\s*없습니다)/i.test(trimmed)) return true;
-  if (/기사\s*내용과\s*(직접\s*)?무관/i.test(trimmed)) return true;
+  // 2. Pure photo / graphic / copyright caption lines
+  if (/^(사진|자료사진|그래픽|도표|출처|캡처)\s*(=|:|\/)/i.test(trimmed)) return true;
+  if (/(기념촬영을 하고 있다|기념사진을 찍고 있다|포즈를 취하고 있다)\s*$/i.test(trimmed)) return true;
+  if (/^(저작권자|무단\s*전재|재배포\s*금지|all rights reserved|copyright)/i.test(trimmed)) return true;
 
-  // 3. Typical photo description endings
-  if (/(모습이다|모습\.|전경이다|전경\.|장면이다|장면\.|포즈를 취하고 있다|기념촬영을 하고 있다|기념사진을 찍고 있다)\s*$/i.test(trimmed)) return true;
-
-  // 4. Banners, marketing, subscription, newsletters, channels, apps
-  if (/(구독|네이버\s*메인|채널\s*추가|카카오톡|플러스친구|친구\s*추가|앱\s*다운로드|뉴스레터|팟캐스트|팔로우|소식받기)/i.test(trimmed)) return true;
-  if (/(제보|제보하기|제보를\s*기다립니다|독자\s*제보|제보창구|이메일|02-\d{3,4}-\d{4})/i.test(trimmed)) return true;
-  if (/(바로가기|더보기|관련기사|추천기사|인기기사|많이\s*본\s*뉴스|실시간\s*인기|놓치지\s*마세요|인기\s*뉴스|오픈채팅)/i.test(trimmed)) return true;
-  if (/(무단\s*전재|재배포|저작권자|copyright|all\s*rights\s*reserved|불펌)/i.test(trimmed)) return true;
-
-  // 5. Reporter bylines / email signatures
-  if (/([가-힣]{2,5}\s*(기자|특파원|논설위원|연구원|PD|작가|팀장|국장))\s*(\[|\(|\/|<|@|\.|$)/i.test(trimmed)) return true;
-  if (/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(trimmed)) return true;
-
-  // 6. Navigation / UI noise
-  if (/^(공유|댓글|좋아요|인쇄|폰트|글자크기|스크랩|신고|수정|등록)/i.test(trimmed)) return true;
+  // 3. Short standalone noise lines (< 60 chars)
+  if (trimmed.length < 60) {
+    if (/(연합뉴스\s*자료사진|뉴스1\s*DB|뉴시스\s*DB|게티이미지|gettyimages)/i.test(trimmed)) return true;
+    if (/(모습이다|모습\.|전경이다|전경\.|장면이다|장면\.)\s*$/i.test(trimmed)) return true;
+    if (/(기사와\s*직접적인\s*관련\s*없음|기사\s*내용과\s*무관)/i.test(trimmed)) return true;
+    if (/(네이버\s*메인|채널\s*추가|플러스친구|앱\s*다운로드|뉴스레터\s*구독|소식받기)/i.test(trimmed)) return true;
+    if (/(제보를\s*기다립니다|독자\s*제보|제보창구|02-\d{3,4}-\d{4})/i.test(trimmed)) return true;
+    if (/(관련기사\s*더보기|추천기사|인기기사|많이\s*본\s*뉴스|실시간\s*인기|놓치지\s*마세요)/i.test(trimmed)) return true;
+    if (/(무단\s*전재|재배포\s*금지|불펌\s*금지)/i.test(trimmed)) return true;
+    if (/^[가-힣\s]{2,10}\s*(기자|특파원|논설위원)\s*(\[|\(|\/|<|@|\.|$)/i.test(trimmed)) return true;
+    if (/^(공유|댓글|좋아요|인쇄|폰트|글자크기|스크랩|신고|수정|등록)/i.test(trimmed)) return true;
+  }
 
   return false;
 }
 
 function splitSentences(text) {
-  return text
+  if (!text) return [];
+  const cleaned = cleanRawText(text);
+  return cleaned
     .replace(/\r\n/g, '\n')
     .split(/(?<=[.!?。])\s+|\n+/)
     .map(s => s
@@ -385,7 +393,7 @@ function generateDeckFromArticle(article, options = {}) {
   const imgSlide4 = rawImages[3] || rawImages[1] || mainImg;
   const imgSlide5 = mainImg;
 
-  // Distribute sentences intelligently so every slide has 2 solid points
+  // Distribute sentences intelligently across slides 2, 3, 4
   const total = sentences.length;
   let issueBullets = [];
   let pointBullets = [];
@@ -395,20 +403,26 @@ function generateDeckFromArticle(article, options = {}) {
     issueBullets = sentences.slice(0, 2);
     pointBullets = sentences.slice(2, 4);
     impactBullets = sentences.slice(4, 6);
-  } else if (total >= 4) {
+  } else if (total >= 5) {
     issueBullets = [sentences[0], sentences[1]];
     pointBullets = [sentences[2], sentences[3]];
-    impactBullets = [
-      '관련 업계 및 시장 참여자들의 관심이 집중되며 주요 화두로 떠오르고 있습니다.',
-      '향후 후속 가이드라인과 시장 대응 조치에 이목이 쏠리고 있습니다.'
-    ];
-  } else if (total >= 2) {
+    impactBullets = [sentences[4]];
+  } else if (total === 4) {
+    issueBullets = [sentences[0], sentences[1]];
+    pointBullets = [sentences[2]];
+    impactBullets = [sentences[3]];
+  } else if (total === 3) {
     issueBullets = [sentences[0]];
     pointBullets = [sentences[1]];
-    impactBullets = [
-      '소비자와 시장 사이에서 긍정적 기대와 우려가 교차하며 주목받고 있습니다.',
-      '관련 트렌드가 지속적으로 확대될지 업계의 시선이 집중되고 있습니다.'
-    ];
+    impactBullets = [sentences[2]];
+  } else if (total === 2) {
+    issueBullets = [sentences[0]];
+    pointBullets = [sentences[1]];
+    impactBullets = ['관련 분야의 파급 효과와 향후 시장 대응 조치에 관심이 집중되고 있습니다.'];
+  } else if (total === 1) {
+    issueBullets = [sentences[0]];
+    pointBullets = ['전문가들은 이번 조치가 가져올 파급력과 변화에 주목하고 있습니다.'];
+    impactBullets = ['향후 추가적인 공식 발표와 후속 보도가 이어질 전망입니다.'];
   } else {
     issueBullets = [`${title}에 대한 새로운 소식이 전해졌습니다.`];
     pointBullets = ['전문가들은 이번 조치가 가져올 파급력과 변화에 주목하고 있습니다.'];
