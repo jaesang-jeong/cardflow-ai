@@ -146,65 +146,65 @@ async function renderCardToCanvas(canvas, slide, deck, slideIndex, totalSlides) 
 
   // For Cover Slide: Anchor headline and summary firmly at the bottom
   if (isCover) {
-    const badgeH = slide.badge ? 76 : 0;
+    const badgeH = slide.badge ? 65 : 0;
 
-    ctx.font = '900 68px sans-serif';
+    ctx.font = '900 54px sans-serif';
     const preTitleLines = wrapText(ctx, slide.title, maxTitleW);
-    const titleH = preTitleLines.length * 84;
+    const titleH = preTitleLines.length * 68;
 
     let sumBoxH = 0;
     if (slide.oneLineSummary || slide.subtitle) {
       const summaryText = slide.oneLineSummary || slide.subtitle;
-      ctx.font = '500 32px sans-serif';
+      ctx.font = '500 28px sans-serif';
       const preSumLines = wrapText(ctx, summaryText, maxTitleW - 60);
-      sumBoxH = (preSumLines.length * 46) + 70 + 28;
+      sumBoxH = (preSumLines.length * 40) + 56 + 20;
     }
 
     const totalCoverContentH = badgeH + titleH + sumBoxH;
-    const bottomBarLimit = (height - 80) - 45; // 45px breathing space above bottom bar divider
+    const bottomBarLimit = (height - 80) - 25; // snug above bottom bar divider
     const targetY = bottomBarLimit - totalCoverContentH;
-    currentY = Math.max(topY + 60, targetY);
+    currentY = Math.max(height * 0.52, targetY);
   }
 
   // Category Badge
   if (slide.badge) {
-    ctx.font = 'bold 32px sans-serif';
+    ctx.font = 'bold 30px sans-serif';
     const badgeText = slide.badge;
-    const badgeW = ctx.measureText(badgeText).width + 40;
+    const badgeW = ctx.measureText(badgeText).width + 36;
 
     ctx.fillStyle = theme.badgeBg;
     ctx.beginPath();
-    ctx.roundRect(paddingX, currentY, badgeW, 54, 16);
+    ctx.roundRect(paddingX, currentY, badgeW, 48, 14);
     ctx.fill();
 
     ctx.fillStyle = theme.badgeText;
-    ctx.fillText(badgeText, paddingX + 20, currentY + 38);
-    currentY += 80;
+    ctx.fillText(badgeText, paddingX + 18, currentY + 34);
+    currentY += 65;
   }
 
   // Title (Headline)
-  ctx.font = isCover ? '900 68px sans-serif' : 'bold 56px sans-serif';
+  ctx.font = isCover ? '900 54px sans-serif' : 'bold 56px sans-serif';
   ctx.fillStyle = isCover ? '#ffffff' : theme.textColor;
   const titleLines = wrapText(ctx, slide.title, maxTitleW);
 
   for (const line of titleLines) {
     ctx.fillText(line, paddingX, currentY + 40);
-    currentY += (isCover ? 84 : 72);
+    currentY += (isCover ? 68 : 72);
   }
 
   // Subtitle / One-Line Summary Box
   if (isCover && (slide.oneLineSummary || slide.subtitle)) {
     const summaryText = slide.oneLineSummary || slide.subtitle;
-    ctx.font = '500 32px sans-serif';
+    ctx.font = '500 28px sans-serif';
     const sumLines = wrapText(ctx, summaryText, maxTitleW - 60);
-    const boxH = (sumLines.length * 46) + 70;
+    const boxH = (sumLines.length * 40) + 56;
 
-    currentY += 30;
+    currentY += 20;
 
     // Summary Card Box
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
     ctx.beginPath();
-    ctx.roundRect(paddingX, currentY, maxTitleW, boxH, 20);
+    ctx.roundRect(paddingX, currentY, maxTitleW, boxH, 18);
     ctx.fill();
 
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
@@ -212,17 +212,17 @@ async function renderCardToCanvas(canvas, slide, deck, slideIndex, totalSlides) 
     ctx.stroke();
 
     // Box Header
-    ctx.font = 'bold 26px sans-serif';
+    ctx.font = 'bold 24px sans-serif';
     ctx.fillStyle = '#fcd34d'; // Amber
-    ctx.fillText('✨ 기사 1줄 핵심 요약', paddingX + 30, currentY + 38);
+    ctx.fillText('✨ 기사 1줄 핵심 요약', paddingX + 25, currentY + 32);
 
     // Box Text
-    ctx.font = '500 30px sans-serif';
+    ctx.font = '500 27px sans-serif';
     ctx.fillStyle = '#f8fafc';
-    let lineY = currentY + 80;
+    let lineY = currentY + 68;
     for (const line of sumLines) {
-      ctx.fillText(line, paddingX + 30, lineY);
-      lineY += 44;
+      ctx.fillText(line, paddingX + 25, lineY);
+      lineY += 38;
     }
   } else if (slide.subtitle) {
     currentY += 15;

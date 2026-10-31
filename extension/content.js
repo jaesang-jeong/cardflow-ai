@@ -207,7 +207,7 @@ function extractArticleFromCurrentPage() {
   // Fallback: search all paragraphs if specific selector failed
   if (!bodyText || bodyText.length < 80) {
     const allP = Array.from(document.querySelectorAll('p'))
-      .map(p => p.innerText.trim())
+      .map(p => (p.innerText || p.textContent || '').trim())
       .map(s => s
         .replace(/^\[.*?\]\s*/, '')
         .replace(/^\(.*?\)\s*/, '')
@@ -221,17 +221,27 @@ function extractArticleFromCurrentPage() {
     }
   }
 
-  // 6. Extract all real editorial images from the article body
+  // 6. Extract ONLY real editorial article images (filter out logos, reporter face, ads, related news)
   const articleImages = [];
-  if (ogImage && !ogImage.includes('favicon') && !ogImage.includes('default')) {
+  if (ogImage && !/favicon|default|logo|blank|icon/i.test(ogImage)) {
     articleImages.push(ogImage);
   }
 
-  for (const sel of bodySelectors) {
+  const primaryBodySelectors = [
+    '#dic_area', '#newsct_article', '.article_view', '#articleBody', 
+    '#article-view-content-div', '#article_body', '.article-body', 
+    '.story-news', '.view_con', 'article'
+  ];
+
+  for (const sel of primaryBodySelectors) {
     const el = document.querySelector(sel);
     if (el) {
       const imgs = el.querySelectorAll('img');
       imgs.forEach(img => {
+        if (img.closest && img.closest('[class*="journalist"], [class*="reporter"], [class*="byline"], [class*="logo"], [class*="related"], [class*="relation"], [class*="recommend"], [class*="feed"], [class*="comment"], [class*="footer"], [class*="banner"], [class*="ad"]')) {
+          return;
+        }
+
         let src = img.getAttribute('data-src') || 
                   img.getAttribute('data-original') || 
                   img.getAttribute('data-lazy-src') || 
@@ -240,7 +250,7 @@ function extractArticleFromCurrentPage() {
         if (src.startsWith('//')) src = 'https:' + src;
         else if (src.startsWith('/')) src = window.location.origin + src;
 
-        if (/icon|badge|logo|ad\.|banner|button|btn|blank|pixel|track|spinner|share|loading|emoticon|profile|avatar/i.test(src)) {
+        if (/icon|badge|logo|office_logo|press_logo|ad\.|ads\.|banner|button|btn|blank|pixel|track|spinner|share|loading|emoticon|profile|avatar|journalist|reporter|author|byline|comp_feed|related|thumb_|\b(112_112|100_|80_|50_)\b/i.test(src)) {
           return;
         }
 
@@ -263,7 +273,7 @@ function extractArticleFromCurrentPage() {
     publishDate: typeof dateMeta === 'string' ? dateMeta.substring(0, 10) : new Date().toISOString().split('T')[0],
     description: ogDesc,
     content: bodyText || ogDesc || cleanTitle,
-    ogImage: ogImage || undefined,
+    ogImage: ogImage || null,
     images: articleImages,
     domain: host,
   };

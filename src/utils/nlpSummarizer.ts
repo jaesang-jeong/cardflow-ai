@@ -502,16 +502,16 @@ export function generateCardDeckFromText(params: {
     ? images
     : (ogImage ? [ogImage] : []);
 
-  // Fallback image pool
+  // Fallback image pool ONLY if article has NO images at all
   const topicImageList = TOPIC_IMAGES[category.key] || TOPIC_IMAGES.default;
   const fallbackImage = topicImageList[0];
   const mainImage = rawImages[0] || fallbackImage;
 
-  // Real article photos assigned sequentially to each slide for 100% relevance
+  // Real article photos assigned sequentially; if article has 1 photo, keep authentic image across all slides!
   const imgSlide1 = mainImage;
-  const imgSlide2 = rawImages[1] || mainImage;
-  const imgSlide3 = rawImages[2] || rawImages[1] || mainImage;
-  const imgSlide4 = rawImages[3] || rawImages[1] || mainImage;
+  const imgSlide2 = rawImages.length >= 2 ? rawImages[1] : mainImage;
+  const imgSlide3 = rawImages.length >= 3 ? rawImages[2] : (rawImages.length >= 2 ? rawImages[1] : mainImage);
+  const imgSlide4 = rawImages.length >= 4 ? rawImages[3] : (rawImages.length >= 2 ? rawImages[1] : mainImage);
   const imgSlide5 = mainImage;
 
   // Clean headline

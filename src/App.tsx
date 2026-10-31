@@ -35,6 +35,7 @@ export const App: React.FC = () => {
       publishDate: initialSample.publishDate,
       sourceUrl: initialSample.url,
       ogImage: initialSample.ogImage,
+      images: [initialSample.ogImage],
       description: initialSample.summary,
       options: {
         slideCount: 5,
@@ -215,6 +216,7 @@ export const App: React.FC = () => {
       publishDate: sample.publishDate,
       sourceUrl: sample.url,
       ogImage: sample.ogImage,
+      images: [sample.ogImage],
       description: sample.summary,
       options: deckOptions,
     });

@@ -271,14 +271,24 @@ app.post('/api/extract', async (req, res) => {
 
     // Extract editorial article images before removing photo caption wrappers
     const articleImages = [];
-    if (ogImage && !ogImage.includes('favicon') && !ogImage.includes('default')) {
+    if (ogImage && !/favicon|default|logo|blank|icon/i.test(ogImage)) {
       articleImages.push(ogImage);
     }
 
-    for (const selector of BODY_SELECTORS) {
+    const primaryBodySelectors = [
+      '#dic_area', '#newsct_article', '.article_view', '#articleBody', 
+      '#article-view-content-div', '#article_body', '.article-body', 
+      '.story-news', '.view_con', 'article'
+    ];
+
+    for (const selector of primaryBodySelectors) {
       const el = $(selector);
       if (el.length > 0) {
         el.find('img').each((_, imgEl) => {
+          if ($(imgEl).closest('[class*="journalist"], [class*="reporter"], [class*="byline"], [class*="logo"], [class*="related"], [class*="relation"], [class*="recommend"], [class*="feed"], [class*="comment"], [class*="footer"], [class*="banner"], [class*="ad"]').length > 0) {
+            return;
+          }
+
           let src = $(imgEl).attr('data-src') || $(imgEl).attr('data-original') || $(imgEl).attr('src');
           if (!src) return;
           if (src.startsWith('//')) src = 'https:' + src;
@@ -288,7 +298,7 @@ app.post('/api/extract', async (req, res) => {
               src = `${u.origin}${src}`;
             } catch (e) {}
           }
-          if (!/icon|badge|logo|ad\.|banner|button|btn|blank|pixel|track|spinner|share|loading|emoticon|profile/i.test(src)) {
+          if (!/icon|badge|logo|office_logo|press_logo|ad\.|ads\.|banner|button|btn|blank|pixel|track|spinner|share|loading|emoticon|profile|avatar|journalist|reporter|author|byline|comp_feed|related|thumb_|\b(112_112|100_|80_|50_)\b/i.test(src)) {
             const baseSrc = src.split('?')[0];
             if (!articleImages.some(img => img.split('?')[0] === baseSrc)) {
               articleImages.push(src);

@@ -382,15 +382,16 @@ function generateDeckFromArticle(article, options = {}) {
     ? article.images
     : (article.ogImage ? [article.ogImage] : []);
 
+  // Fallback image pool ONLY if article has NO images at all
   const topicImages = TOPIC_IMAGES[category.key] || TOPIC_IMAGES.society;
   const fallbackImg = topicImages[0];
   const mainImg = rawImages[0] || fallbackImg;
 
-  // Real article photos assigned sequentially to each slide for 100% relevance
+  // Real article photos assigned sequentially; if article has 1 photo, keep authentic image across all slides!
   const imgSlide1 = mainImg;
-  const imgSlide2 = rawImages[1] || mainImg;
-  const imgSlide3 = rawImages[2] || rawImages[1] || mainImg;
-  const imgSlide4 = rawImages[3] || rawImages[1] || mainImg;
+  const imgSlide2 = rawImages.length >= 2 ? rawImages[1] : mainImg;
+  const imgSlide3 = rawImages.length >= 3 ? rawImages[2] : (rawImages.length >= 2 ? rawImages[1] : mainImg);
+  const imgSlide4 = rawImages.length >= 4 ? rawImages[3] : (rawImages.length >= 2 ? rawImages[1] : mainImg);
   const imgSlide5 = mainImg;
 
   // Distribute sentences intelligently across slides 2, 3, 4

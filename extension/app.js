@@ -274,7 +274,7 @@ function extractArticleDirectly() {
   // Fallback: search all paragraphs if specific selector failed
   if (!bodyText || bodyText.length < 80) {
     const allP = Array.from(document.querySelectorAll('p'))
-      .map(p => p.innerText.trim())
+      .map(p => (p.innerText || p.textContent || '').trim())
       .map(s => s
         .replace(/^\[.*?\]\s*/, '')
         .replace(/^\(.*?\)\s*/, '')
@@ -288,17 +288,28 @@ function extractArticleDirectly() {
     }
   }
 
-  // 6. Extract all real editorial images from the article body
+  // 6. Extract ONLY real editorial article images (filter out logos, reporter face, ads, related news)
   const articleImages = [];
-  if (ogImage && !ogImage.includes('favicon') && !ogImage.includes('default')) {
+  if (ogImage && !/favicon|default|logo|blank|icon/i.test(ogImage)) {
     articleImages.push(ogImage);
   }
 
-  for (const sel of bodySelectors) {
+  const primaryBodySelectors = [
+    '#dic_area', '#newsct_article', '.article_view', '#articleBody', 
+    '#article-view-content-div', '#article_body', '.article-body', 
+    '.story-news', '.view_con', 'article'
+  ];
+
+  for (const sel of primaryBodySelectors) {
     const el = document.querySelector(sel);
     if (el) {
       const imgs = el.querySelectorAll('img');
       imgs.forEach(img => {
+        // Exclude images nested inside author/reporter/related/aside/comment containers
+        if (img.closest && img.closest('[class*="journalist"], [class*="reporter"], [class*="byline"], [class*="logo"], [class*="related"], [class*="relation"], [class*="recommend"], [class*="feed"], [class*="comment"], [class*="footer"], [class*="banner"], [class*="ad"]')) {
+          return;
+        }
+
         let src = img.getAttribute('data-src') || 
                   img.getAttribute('data-original') || 
                   img.getAttribute('data-lazy-src') || 
@@ -307,7 +318,8 @@ function extractArticleDirectly() {
         if (src.startsWith('//')) src = 'https:' + src;
         else if (src.startsWith('/')) src = window.location.origin + src;
 
-        if (/icon|badge|logo|ad\.|banner|button|btn|blank|pixel|track|spinner|share|loading|emoticon|profile|avatar/i.test(src)) {
+        // Reject noise, logos, reporter portraits, ad images
+        if (/icon|badge|logo|office_logo|press_logo|ad\.|ads\.|banner|button|btn|blank|pixel|track|spinner|share|loading|emoticon|profile|avatar|journalist|reporter|author|byline|comp_feed|related|thumb_|\b(112_112|100_|80_|50_)\b/i.test(src)) {
           return;
         }
 
@@ -330,7 +342,7 @@ function extractArticleDirectly() {
     publishDate: typeof dateMeta === 'string' ? dateMeta.substring(0, 10) : new Date().toISOString().split('T')[0],
     description: ogDesc,
     content: bodyText || ogDesc || cleanTitle,
-    ogImage: ogImage || undefined,
+    ogImage: ogImage || null,
     images: articleImages,
     domain: host,
   };
@@ -341,7 +353,7 @@ async function extractFromActiveTab() {
   showToast('현재 탭 기사 분석 중...');
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab || !tab.id || !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://')) {
+    if (!tab || !tab.id || !tab.url || !tab.url.startsWith('http')) {
       loadDeck(DEFAULT_ARTICLE);
       showToast('예시 기사 로드됨 (시스템 페이지)');
       return;
@@ -360,7 +372,7 @@ async function extractFromActiveTab() {
         articleData = results[0].result;
       }
     } catch (scriptErr) {
-      console.warn('executeScript failed, trying backend fallback:', scriptErr);
+      console.warn('executeScript notice:', scriptErr);
     }
 
     // 2. Local Backend Studio Fallback (/api/extract)
@@ -378,7 +390,7 @@ async function extractFromActiveTab() {
           }
         }
       } catch (backendErr) {
-        console.warn('Backend extraction fallback notice:', backendErr);
+        // Backend optional
       }
     }
 
@@ -386,7 +398,8 @@ async function extractFromActiveTab() {
     if (!articleData) {
       articleData = await new Promise((resolve) => {
         chrome.tabs.sendMessage(tab.id, { action: 'EXTRACT_ARTICLE' }, (response) => {
-          if (!chrome.runtime.lastError && response && response.success && response.data?.content && response.data.content.length > 50) {
+          const lastErr = chrome.runtime.lastError; // Clear unchecked error
+          if (!lastErr && response && response.success && response.data?.content && response.data.content.length > 50) {
             resolve(response.data);
           } else {
             resolve(null);
@@ -397,13 +410,13 @@ async function extractFromActiveTab() {
 
     if (articleData && articleData.content && articleData.content.length > 30) {
       loadDeck(articleData);
-      showToast('현재 기사 본문 추출 및 요약 완료!');
+      showToast('기사 요약 생성 완료!');
     } else {
       loadDeck(DEFAULT_ARTICLE);
       showToast('본문 추출 불가로 예시 기사를 로드했습니다.');
     }
   } catch (err) {
-    console.error('Extraction error:', err);
+    console.warn('Extraction notice:', err);
     loadDeck(DEFAULT_ARTICLE);
   }
 }
